@@ -4,14 +4,28 @@ from vm_translator import consts
 
 class CodeGenerator(object):
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=True):
         self._assembly_lines = []
         self.debug = debug
 
     def process_instruction(self, instruction):
         if self.debug:
-            self._asm("// Instruction: %s" % instruction)
-        return self._INSTRUCTION_COMMAND_TO_PROCESS_METHOD[instruction.command](instruction)
+            self._asm("// Instruction: %s" % repr(instruction))
+
+        INSTRUCTION_COMMAND_TO_PROCESS_METHOD = {
+            # Binray arithmatic commands.
+            consts.ADD: self._process_binray_arithmetic_command,
+            consts.SUB: self._process_binray_arithmetic_command,
+
+            # Unary arithmatic commands
+
+            # Memory instructions
+            consts.PUSH: self._process_push,
+            consts.POP: self._process_pop
+        }
+
+        process_instruction = INSTRUCTION_COMMAND_TO_PROCESS_METHOD[instruction.command]
+        return process_instruction(instruction)
 
     def set_current_file(self, file_path):
         pass
@@ -104,33 +118,19 @@ class CodeGenerator(object):
             raise RuntimeError("Unsupported instruction: %" % instruction)
 
         self._asm(
-            "@R13"
-            "M=D"
-            "@SP"
-            "AM=M-1"
-            "D=M"
-            "@R13"
-            "A=M"
+            "@R13",
+            "M=D",
+            "@SP",
+            "AM=M-1",
+            "D=M",
+            "@R13",
+            "A=M",
             "M=D"
         )
 
 
-    _INSTRUCTION_COMMAND_TO_PROCESS_METHOD = {
-
-        # Binray arithmatic commands.
-        consts.ADD: _process_binray_arithmetic_command,
-        consts.SUB: _process_binray_arithmetic_command,
-
-        # Unary arithmatic commands
-
-        # Memory instructions
-        consts.PUSH: _process_push,
-        consts.POP: _process_pop
-
-    }
-
     _BINARY_ARITHMETIC_COMMAND_TO_HACK = {
-        consts.ADD: "M=M+D",
+        consts.ADD: "M=D+M",
         consts.SUB: "M=M-D",
         consts.AND: "M=D&M",
     }
