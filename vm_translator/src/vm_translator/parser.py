@@ -4,8 +4,20 @@ from vm_translator import consts
 
 
 ArithmeticInstruction = namedtuple("ArithmeticInstruction", ["command"])
-MemoryInstruction = namedtuple("MemoryInstruction", ["command", "segment", "index"])
-ProgramFlowInstruction = namedtuple("ProgramFlowInstruction", ["command", "label"])
+
+MemoryInstruction = namedtuple("MemoryInstruction", ["command",
+                                                     "segment",
+                                                     "index"])
+
+ProgramFlowInstruction = namedtuple("ProgramFlowInstruction", ["command",
+                                                               "label"])
+
+FunctionProtocolInstruction = namedtuple("FunctionProtocolInstruction",
+                                         ["command",
+                                          "function_name",
+                                          "number_of_arguments"])
+
+ReturnInstruction = namedtuple("ReturnInstruction", ["command"])
 
 
 def parse_vm_file(path):
@@ -57,5 +69,9 @@ def parse_instruction(line):
         return MemoryInstruction(*terms)
     elif instruction in consts.PROGRAM_FLOW_INSTRUCTIONS:
         return ProgramFlowInstruction(*terms)
+    elif instruction in consts.FUNCTION_PROTOCOL_INSTRUCTIONS:
+        return FunctionProtocolInstruction(*terms)
+    elif instruction == consts.RETURN:
+        return ReturnInstruction(*terms)
     else:
         raise RuntimeError("Unsupported instruction: %s" % line)

@@ -15,6 +15,17 @@ def translate_to_hack(file_paths, output_path):
 
     return open(output_path, 'wb').write(code_generator.get_assembly_code())
 
+def translate_to_hack_given_path(input_path):
+    if os.path.isdir(input_path):
+        paths = [os.path.join(input_path, filename) for
+                 filename in os.listdir(input_path) if filename.endswith(".vm")]
+        output_file =  os.path.join(input_path, os.path.basename(input_path) + ".asm")
+    else:
+        paths = [input_path]
+        output_file = os.path.splitext(input_path)[0] + '.asm'
+
+    translate_to_hack(paths, output_file)
+
 def parse_args():
     if len(sys.argv) < 2:
         print "Usage: %s <vm file/ directory>" % sys.argv[0]
@@ -23,15 +34,7 @@ def parse_args():
 
 def main():
     input_path = parse_args()
-
-    if os.path.isdir(input_path):
-        paths = [path for path in os.path.lisdir(input_path) if path.endswith(".vm")]
-        output_file =  os.path.join(input_path, "out.asm")
-    else:
-        paths = [input_path]
-        output_file = os.path.splitext(input_path)[0] + '.asm'
-
-    translate_to_hack(paths, output_file)
+    translate_to_hack_given_path(input_path)
 
 if __name__ == "__main__":
     main()  

@@ -18,6 +18,12 @@ LABEL = "label"
 GOTO = "goto"
 IF_GOTO = "if-goto"
 
+# List of function related commands
+CALL = "call"
+FUNCTION = "function"
+RETURN = "return"
+
+
 # List of memory segments
 STATIC="static"
 THIS="this"
@@ -54,3 +60,11 @@ PROGRAM_FLOW_INSTRUCTIONS = (
     GOTO,
     IF_GOTO
 )
+
+FUNCTION_PROTOCOL_INSTRUCTIONS = (
+    FUNCTION,
+    CALL
+)
+
+# Sys.init function name (for bootsrap the program)
+SYS_INIT = "Sys.init"

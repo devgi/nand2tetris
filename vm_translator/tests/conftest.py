@@ -9,6 +9,13 @@ all_vm_files = list(py.path.local(__file__).dirpath().join("resources").visit("*
 def vm_file(request):
     return request.param
 
+# The difference between vm file to vm program is that vm program
+# may be a directory with multiple vm files that construct single program.
+all_vm_programs = list(set(vm_file.dirpath().strpath for vm_file in all_vm_files))
+
+@pytest.fixture(params=all_vm_programs, ids=all_vm_programs)
+def vm_program(request):
+    return request.param
 
 NAND2TETRIS_TOOLS = os.environ.get("NAND2TETRIS_TOOLS", None)
 

@@ -1,7 +1,7 @@
 import os
 import itertools
 
-
+from vm_translator.parser import MemoryInstruction, ProgramFlowInstruction
 from vm_translator import consts
 
 class CodeGenerator(object):
@@ -10,6 +10,10 @@ class CodeGenerator(object):
         self._assembly_lines = []
         self.debug = debug
         self._current_file = None
+
+        # This flag states if Sys.init function was processed during translation
+        # and if so make sure later that it will be called during the bootstrap.
+        self._call_sys_init = False
 
         # Uses us to give unique labels for comparison statements.
         self._label_counter = itertools.count(1)
@@ -53,7 +57,12 @@ class CodeGenerator(object):
             # Program Flow instructions
             consts.LABEL: self._process_label,
             consts.GOTO: self._process_goto,
-            consts.IF_GOTO: self._process_if_goto
+            consts.IF_GOTO: self._process_if_goto,
+
+            # Function Protocol Instructions
+            consts.FUNCTION: self._process_function_declaration,
+            consts.CALL: self._process_function_call,
+            consts.RETURN: self._process_return
         }
 
         process_instruction = INSTRUCTION_COMMAND_TO_PROCESS_METHOD[instruction.command]
@@ -72,6 +81,15 @@ class CodeGenerator(object):
         Get the complete assembly code for the program.
         :return: String represents the final HACK program.
         """
+        if self._call_sys_init:
+            bootstrap = [
+                "@256",
+                "D=A",
+                "@SP",
+                "M=D",
+                ""
+            ]
+
         return os.linesep.join(self._assembly_lines)
 
     def _asm(self, *asm_lines):
@@ -155,20 +173,207 @@ class CodeGenerator(object):
         )
 
     def _process_label(self, instruction):
-        self._asm("(%s)" % self._get_label(instruction.label))
+        self._asm("(%s)" % self._get_label_within_function(instruction.label))
 
     def _process_goto(self, instruction):
-        self._asm("@" + self._get_label(instruction.label),
-                  "A;JMP")
+        self._asm("@" + self._get_label_within_function(instruction.label),
+                  "0;JMP")
 
     def _process_if_goto(self, instruction):
         self._asm(
             "@SP",
             "AM=M-1",
             "D=M",
-            "@" +  self._get_label(instruction.label),
+            "@" +  self._get_label_within_function(instruction.label),
             "D;JNE"
         )
+
+    def _process_function_declaration(self, instruction):
+        self._current_func = instruction.function_name
+
+        if self._current_func ==
+
+        self._asm(
+            "(%s)" % self._current_func,
+        )
+        for _ in xrange(int(instruction.number_of_arguments)):
+            self._process_push(MemoryInstruction(command=consts.PUSH,
+                                                 segment=consts.CONSTANT,
+                                                 index="0"))
+
+    def _process_function_call(self, instruction):
+        return_address_label = self._get_unique_label(
+            name="return-from-" + instruction.function_name)
+
+        # 1. Push return address, we use push constant with index
+        # as label (which mean push the value of this label).
+        self._process_push(MemoryInstruction(command=consts.PUSH,
+                                             segment=consts.CONSTANT,
+                                             index=return_address_label))
+
+        # 2. Push the value of LCL
+        self._process_push(MemoryInstruction(command=consts.PUSH,
+                                             segment=consts.CONSTANT,
+                                             index="LCL"),
+                           dereference_constant=True)
+
+        # 3. Push the value of ARG
+        self._process_push(MemoryInstruction(command=consts.PUSH,
+                                             segment=consts.CONSTANT,
+                                             index="ARG"),
+                           dereference_constant=True)
+
+        # 4. Push the value of THIS
+        self._process_push(MemoryInstruction(command=consts.PUSH,
+                                             segment=consts.CONSTANT,
+                                             index="THIS"),
+                           dereference_constant=True)
+
+        # 5. Push the value of THAT
+        self._process_push(MemoryInstruction(command=consts.PUSH,
+                                             segment=consts.CONSTANT,
+                                             index="THAT"),
+                           dereference_constant=True)
+
+        # 6. ARG <- SP - n - 5 (n - number of arguments)
+        self._asm(
+            "@SP",
+            "D=M",
+            "@" + str((int(instruction.number_of_arguments) + 5)), # (n + 5)
+            "D=D-A", # SP - (n + 5)
+            "@ARG",
+            "M=D",
+        )
+
+        # 7. LCL <- SP
+        self._asm(
+            "@SP",
+            "D=M",
+            "@LCL",
+            "M=D",
+        )
+
+        # 8. Goto function.
+        self._asm(
+            "@" + instruction.function_name,
+            "0;JMP"
+        )
+
+        # 9. Declare the return address
+        self._asm(
+            "(%s)" % return_address_label
+        )
+
+    def _xprocess_return(self, instruction):
+        FRAME = "R13"
+        RET = "R14"
+
+        # 1. Frame <- *LCL.
+        self._asm(
+            "@LCL",
+            "D=M",
+            "@" + FRAME,
+            "M=D",
+        )
+
+        # # 2. RET=*(FRAME - 5)
+        self._asm(
+            "@" + FRAME,
+            "D=A",
+            "@5",
+            "A=D-A",
+            "D=M",
+            "@" + RET,
+            "M=D",
+        )
+
+        # 3. ARG=pop()
+        self._asm(
+            "@SP",
+            "A=M-1", # FIXME: MAYBE am?
+            "D=M",
+            "@ARG",
+            "A=M",
+            "M=D")
+
+        # 4. SP = ARG + 1
+        self._asm("@ARG",
+                  "D=M+1",
+                  "@SP",
+                  "M=D")
+
+        # (for the next steps we put FRAME value at D)
+        # 5. THAT=*(FRAME-1)
+        # 6. THIS=*(FRAME-2)
+        # 7. ARG=*(FRAME-3)
+        # 8. LCL=*(FRAME-4)
+        # 9. RET==*(FRAME-5)
+        #
+        for idx, dest in enumerate(("THAT", "THIS", "ARG", "LCL")): #RET):
+            stack_offset = idx + 1
+            self._asm(
+                    "// %s = *(FRAME - %d)" % (dest, stack_offset),
+                    "@" + FRAME,
+                    "D=M",
+                    "@" + str(stack_offset),
+                    "A=D-A",
+                    "D=M",
+                    "@" + dest,
+                    "M=D")
+
+        # 10. goto RET
+        self._asm("@" + RET,
+                  "0;JMP")
+        
+    def _process_return(self, instruction):
+        self._asm(
+            # *(LCL - 5) -> R13
+            "@LCL",
+            "D=M",
+            "@5",
+            "A=D-A",
+            "D=M",
+            "@R13",
+            "M=D",
+            # *(SP - 1) -> *ARG
+            "@SP",
+            "A=M-1",
+            "D=M",
+            "@ARG",
+            "A=M",
+            "M=D ",
+            # ARG + 1 -> SP
+            "D=A+1",
+            "@SP",
+            "M=D",
+            # *(LCL - 1) -> THAT; LCL--
+            "@LCL",
+            "AM=M-1",
+            "D=M",
+            "@THAT",
+            "M=D",
+            # *(LCL - 1) -> THIS; LCL--
+            "@LCL",
+            "AM=M-1",
+            "D=M",
+            "@THIS",
+            "M=D",
+            # *(LCL - 1) -> ARG; LCL--
+            "@LCL",
+            "AM=M-1",
+            "D=M",
+            "@ARG",
+            "M=D",
+            # *(LCL - 1) -> LCL
+            "@LCL",
+            "A=M-1",
+            "D=M",
+            "@LCL",
+            "M=D",
+            # R13 -> A
+            "@R13",
+            "A=M",
+            "0;JMP")
 
     def _static_symbol(self, index):
         """
@@ -178,13 +383,12 @@ class CodeGenerator(object):
         """
         return "%s.%s" % (self._current_file, index)
 
-    def _get_label(self, label_name):
+    def _get_label_within_function(self, label_name):
         """
         :param label_name: The name of the label (used in flow control instructions)
         :return: label for the current scope.
         """
-        return "{file}.{func}.{label}".format(
-                    file=self._current_file,
+        return "{func}.{label}".format(
                     func=self._current_func,
                     label=label_name)
 
@@ -198,7 +402,7 @@ class CodeGenerator(object):
         """
         return "%s.%d" % (name, self._label_counter.next())
 
-    def _process_push(self, instruction):
+    def _process_push(self, instruction, dereference_constant=False):
         # Read the value from the correct segment and store it in D
         # than store D value at the top of the stack and increment the stack.
 
@@ -206,7 +410,7 @@ class CodeGenerator(object):
         if instruction.segment == consts.CONSTANT:
             self._asm(
                 "@" + instruction.index,
-                "D=A",
+                "D=A" if not dereference_constant else "D=M",
             )
 
         # If its to one of the index based memory segments
