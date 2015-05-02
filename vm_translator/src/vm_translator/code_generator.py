@@ -41,12 +41,20 @@ class CodeGenerator(object):
         self._assembly_lines.extend(asm_lines)
 
     def _process_binray_arithmetic_command(self, instruction):
-        hack_instruction = self._BINARY_ARITHMETIC_COMMAND_TO_HACK[instruction.command]
+        hack_instruction = self._BINARY_ARITHMETIC_TO_HACK_INSTRUCTION[instruction.command]
         self._asm(
             "@SP",
             "AM=M-1",
             "D=M",
             "A=A-1",
+            hack_instruction
+        )
+
+    def _process_unary_arithmetic_command(self, instruction):
+        hack_instruction = self._UNARY_ARITHMETIC_TO_HACK_INSTRUCTION[instruction.command]
+        self._asm(
+            "@SP",
+            "AM=M-1",
             hack_instruction
         )
 
@@ -94,7 +102,8 @@ class CodeGenerator(object):
         )
 
     def _process_pop(self, instruction):
-        # Read the value from the correct segment and store it in D
+        # Set D to contain the address of the correct address to fill (depend
+        # on the segment type)
         # than store the value of D at the top of the stack and increment
         # the stack pointer.
 
@@ -119,7 +128,7 @@ class CodeGenerator(object):
 
         self._asm(
             "@R13",
-            "M=D",
+            "M=D", # R13 <- address of the cell to read from
             "@SP",
             "AM=M-1",
             "D=M",
@@ -129,10 +138,22 @@ class CodeGenerator(object):
         )
 
 
-    _BINARY_ARITHMETIC_COMMAND_TO_HACK = {
+    # Map between command to the appropriate hack instruction
+    # assuming D is the value on the top of the stack, and A
+    # is set to the second cell (thus M is both the location
+    # to write the instruction results to and value needs to be read)
+    _BINARY_ARITHMETIC_TO_HACK_INSTRUCTION = {
         consts.ADD: "M=D+M",
         consts.SUB: "M=M-D",
         consts.AND: "M=D&M",
+        consts.OR: "M=D|A"
+    }
+
+    # Map between command to the appropriate hack instruction
+    # assuming A is set to the top of the stack.
+    _UNARY_ARITHMETIC_TO_HACK_INSTRUCTION = {
+        consts.NEG: "M=-M",
+        consts.NOT: "M=!M"
     }
 
     # Map memory segment instruction to the appropriate variable
