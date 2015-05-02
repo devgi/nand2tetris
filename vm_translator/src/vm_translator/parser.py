@@ -25,20 +25,20 @@ def parse_vm_file_content(file_content):
     lines = file_content.splitlines()
     instructions = []
     for line in lines:
-        line = line.strip()
-        if not skip_line(line):
-            instructions.append(parse_instruction(line))
+        # Strip the comments and the extra spaces.
+        line_without_comments = strip_comments(line).strip()
+        if line_without_comments:
+            instructions.append(parse_instruction(line_without_comments))
 
     return instructions
 
 
-def skip_line(line):
-    """
-    Check if skip this line.
-    :param line:
-    :return:
-    """
-    return not line or line.startswith("//")
+def strip_comments(line):
+    COMMENT = "//"
+    if COMMENT in line:
+        return line.split(COMMENT)[0]
+    else:
+        return line
 
 
 def parse_instruction(line):
