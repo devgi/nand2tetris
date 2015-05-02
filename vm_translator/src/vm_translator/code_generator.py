@@ -16,7 +16,7 @@ class CodeGenerator(object):
 
         # Uses us to track which is the current function we process
         # (This is important for scoping labels and flow control instructions)
-        self._current_func = None
+        self._current_func = ""
 
     def process_instruction(self, instruction):
         """
@@ -48,9 +48,12 @@ class CodeGenerator(object):
 
             # Memory instructions
             consts.PUSH: self._process_push,
-            consts.POP: self._process_pop
+            consts.POP: self._process_pop,
 
             # Program Flow instructions
+            consts.LABEL: self._process_label,
+            consts.GOTO: self._process_goto,
+            consts.IF_GOTO: self._process_if_goto
         }
 
         process_instruction = INSTRUCTION_COMMAND_TO_PROCESS_METHOD[instruction.command]
@@ -132,7 +135,7 @@ class CodeGenerator(object):
         }
         conditional_jump_over_D = COMPARISON_TO_HACK_JUMP_INSTRUCTION[instruction.command]
 
-        condition_true_label = self._label("condition.true")
+        condition_true_label = self._get_unique_label("condition.true")
         self._asm(
             "@SP",
             "AM=M-1",
@@ -151,6 +154,22 @@ class CodeGenerator(object):
             "(%s)" % condition_true_label,
         )
 
+    def _process_label(self, instruction):
+        self._asm("(%s)" % self._get_label(instruction.label))
+
+    def _process_goto(self, instruction):
+        self._asm("@" + self._get_label(instruction.label),
+                  "A;JMP")
+
+    def _process_if_goto(self, instruction):
+        self._asm(
+            "@SP",
+            "AM=M-1",
+            "D=M",
+            "@" +  self._get_label(instruction.label),
+            "D;JNE"
+        )
+
     def _static_symbol(self, index):
         """
         Return a string representation of this static symbol
@@ -159,7 +178,17 @@ class CodeGenerator(object):
         """
         return "%s.%s" % (self._current_file, index)
 
-    def _label(self, name):
+    def _get_label(self, label_name):
+        """
+        :param label_name: The name of the label (used in flow control instructions)
+        :return: label for the current scope.
+        """
+        return "{file}.{func}.{label}".format(
+                    file=self._current_file,
+                    func=self._current_func,
+                    label=label_name)
+
+    def _get_unique_label(self, name):
         """
         Create new string which represent unique label in the generated assembly
         program.
