@@ -22,6 +22,8 @@ class CodeGenerator(object):
             self._asm("// Instruction: %s at file %s" % (repr(instruction),
                                                          self._current_file))
 
+        # Map between vm instruction, to the correct hack translation
+        # routine.
         INSTRUCTION_COMMAND_TO_PROCESS_METHOD = {
             # Binray arithmatic commands.
             consts.ADD: self._process_binray_arithmetic_command,
@@ -252,7 +254,7 @@ class CodeGenerator(object):
         )
 
     # Map memory segment instruction to the appropriate variable
-    # which represents the segment base index.
+    # which its value represents the segment base index.
     _MEMORY_SEGMENT_TO_BASE_VARIABLE = {
         consts.LOCAL: "LCL",
         consts.ARGUMENT: "ARG",
@@ -260,6 +262,8 @@ class CodeGenerator(object):
         consts.THAT: "THAT"
     }
 
+    # Map memory segment instruction to the appropriate variable
+    # which its address represents the segment base index.
     _REG_SEGMENT_TO_BASE_VARIABLE_ADDRESS = {
         consts.POINTER: "THIS",
         consts.TEMP: "R5"
