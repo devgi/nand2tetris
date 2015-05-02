@@ -1,5 +1,5 @@
 
-# List of the vm commands
+# List of arithmetic the vm commands
 PUSH = "push"
 POP = "pop"
 ADD = "add"
@@ -11,6 +11,12 @@ LT = "lt"
 AND = "and"
 OR = "or"
 NOT = "not"
+
+# List of program flow commands
+
+LABEL = "label"
+GOTO = "goto"
+IF_GOTO = "if-goto"
 
 # List of memory segments
 STATIC="static"
@@ -41,4 +47,10 @@ ARITHMETIC_INSTRUCTIONS = (
 MEMORY_INSTRUCTIONS = (
     PUSH,
     POP
+)
+
+PROGRAM_FLOW_INSTRUCTIONS = (
+    LABEL,
+    GOTO,
+    IF_GOTO
 )

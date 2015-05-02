@@ -10,7 +10,13 @@ class CodeGenerator(object):
         self._assembly_lines = []
         self.debug = debug
         self._current_file = None
+
+        # Uses us to give unique labels for comparison statements.
         self._label_counter = itertools.count(1)
+
+        # Uses us to track which is the current function we process
+        # (This is important for scoping labels and flow control instructions)
+        self._current_func = None
 
     def process_instruction(self, instruction):
         """
@@ -43,6 +49,8 @@ class CodeGenerator(object):
             # Memory instructions
             consts.PUSH: self._process_push,
             consts.POP: self._process_pop
+
+            # Program Flow instructions
         }
 
         process_instruction = INSTRUCTION_COMMAND_TO_PROCESS_METHOD[instruction.command]
