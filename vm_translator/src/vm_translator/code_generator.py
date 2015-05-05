@@ -1,12 +1,12 @@
 import os
 import itertools
 
-from vm_translator.parser import MemoryInstruction, ProgramFlowInstruction
+from vm_translator.parser import MemoryInstruction, FunctionProtocolInstruction
 from vm_translator import consts
 
 class CodeGenerator(object):
 
-    def __init__(self, debug=True):
+    def __init__(self, debug=False):
         self._assembly_lines = []
         self.debug = debug
         self._current_file = None
@@ -81,16 +81,29 @@ class CodeGenerator(object):
         Get the complete assembly code for the program.
         :return: String represents the final HACK program.
         """
-        if self._call_sys_init:
-            bootstrap = [
-                "@256",
-                "D=A",
-                "@SP",
-                "M=D",
-                ""
-            ]
-
         return os.linesep.join(self._assembly_lines)
+
+    def _push_bootstrap_code(self):
+        """
+        Push the bootstrap code. This code set the initial position of the stack and
+        call Sys.init function.
+        """
+
+        program_so_far = self._assembly_lines
+        self._assembly_lines = []
+        self._asm(
+            "@256",
+            "D=A",
+            "@SP",
+            "M=D",
+            )
+        self._process_function_call(FunctionProtocolInstruction(
+            command=consts.CALL,
+            function_name=consts.SYS_INIT,
+            number_of_arguments='0'
+
+        ))
+        self._assembly_lines = self._assembly_lines + program_so_far
 
     def _asm(self, *asm_lines):
         self._assembly_lines.extend(asm_lines)
@@ -191,7 +204,8 @@ class CodeGenerator(object):
     def _process_function_declaration(self, instruction):
         self._current_func = instruction.function_name
 
-        if self._current_func ==
+        if self._current_func == consts.SYS_INIT:
+            self._push_bootstrap_code()
 
         self._asm(
             "(%s)" % self._current_func,
@@ -263,69 +277,9 @@ class CodeGenerator(object):
         self._asm(
             "(%s)" % return_address_label
         )
-
-    def _xprocess_return(self, instruction):
-        FRAME = "R13"
-        RET = "R14"
-
-        # 1. Frame <- *LCL.
-        self._asm(
-            "@LCL",
-            "D=M",
-            "@" + FRAME,
-            "M=D",
-        )
-
-        # # 2. RET=*(FRAME - 5)
-        self._asm(
-            "@" + FRAME,
-            "D=A",
-            "@5",
-            "A=D-A",
-            "D=M",
-            "@" + RET,
-            "M=D",
-        )
-
-        # 3. ARG=pop()
-        self._asm(
-            "@SP",
-            "A=M-1", # FIXME: MAYBE am?
-            "D=M",
-            "@ARG",
-            "A=M",
-            "M=D")
-
-        # 4. SP = ARG + 1
-        self._asm("@ARG",
-                  "D=M+1",
-                  "@SP",
-                  "M=D")
-
-        # (for the next steps we put FRAME value at D)
-        # 5. THAT=*(FRAME-1)
-        # 6. THIS=*(FRAME-2)
-        # 7. ARG=*(FRAME-3)
-        # 8. LCL=*(FRAME-4)
-        # 9. RET==*(FRAME-5)
-        #
-        for idx, dest in enumerate(("THAT", "THIS", "ARG", "LCL")): #RET):
-            stack_offset = idx + 1
-            self._asm(
-                    "// %s = *(FRAME - %d)" % (dest, stack_offset),
-                    "@" + FRAME,
-                    "D=M",
-                    "@" + str(stack_offset),
-                    "A=D-A",
-                    "D=M",
-                    "@" + dest,
-                    "M=D")
-
-        # 10. goto RET
-        self._asm("@" + RET,
-                  "0;JMP")
         
     def _process_return(self, instruction):
+        FRAME = "R13"
         self._asm(
             # *(LCL - 5) -> R13
             "@LCL",
@@ -333,7 +287,7 @@ class CodeGenerator(object):
             "@5",
             "A=D-A",
             "D=M",
-            "@R13",
+            "@" + FRAME,
             "M=D",
             # *(SP - 1) -> *ARG
             "@SP",
@@ -371,7 +325,7 @@ class CodeGenerator(object):
             "@LCL",
             "M=D",
             # R13 -> A
-            "@R13",
+            "@" + FRAME,
             "A=M",
             "0;JMP")
 
