@@ -90,11 +90,7 @@ class Game2048 {
             {
                 do tile.setValue(2);
             }    
-        } else {
-            do gameOver();
-        }
-            
-        
+        } 
         
         return;
     }
@@ -304,6 +300,54 @@ class Game2048 {
         return result;
     }
     
+    method boolean isGameOver() {
+        // Check for free tiles
+        var int row, column;
+        var Tile tile, neighbour;
+        let row = 0;
+        while (row < 4) {
+            let column = 0;
+            while (column < 4) {
+                let tile = getTile(row, column);
+                if (tile.getValue() = 0) {
+                    return false;
+                }
+                // left
+                if (row + 1 < 4) {
+                    let neighbour = getTile(row + 1, column);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // right
+                if (row  >  0) {
+                    let neighbour = getTile(row - 1, column);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // up
+                if (column + 1 < 4) {
+                    let neighbour = getTile(row, column + 1);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // down
+                if (column  > 0){
+                    let neighbour = getTile(row, column - 1);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                let column = column + 1;
+            }
+            let row = row + 1;
+        }
+        
+        return true;
+    }
+    
     method void updateScores() {
         do Output.moveCursor(4 , 40);
         do Output.printString("Score: ");
@@ -312,12 +356,6 @@ class Game2048 {
         do Output.moveCursor(6 , 40);
         do Output.printString("Moves: ");
         do Output.printInt(numberOfMoves);
-        return;
-    }
-    
-    method void gameOver() {
-        do Output.moveCursor(17 , 36);
-        do Output.printString("** GAME OVER **");
         return;
     }
     
@@ -383,7 +421,12 @@ class Game2048 {
                 do setRandomTile();
                 do updateScores();
             }
-
+            
+            // Check if more moves available.
+            if (isGameOver()) {
+                do Output.moveCursor(17 , 36);
+                do Output.printString("** GAME OVER **");
+            }
           
             // waits for the key to be released.
             while (~(key = 0)) {
