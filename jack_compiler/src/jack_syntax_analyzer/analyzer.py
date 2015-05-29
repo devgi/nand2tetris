@@ -6,6 +6,8 @@ from jack_syntax_analyzer.consts import (CLASS, FIELD, STATIC, BOOLEAN, CHAR,
 from jack_syntax_analyzer.tokenizer import (tokenize, Keyword, Symbol,
                                             Identifier, Integer, String)
 
+from jack_syntax_analyzer.symbol_table import SymbolTable
+
 
 def analyze(jack_file_content):
     tokens = tokenize(jack_file_content)
@@ -16,11 +18,12 @@ class JackAnalyzer(object):
     Analyze the syntax of jack file.
     This class should process only single file since it maintain a state.
     """
-    def __init__(self, tokens):
+    def __init__(self, tokens, symbol_table=SymbolTable()):
         self._xml_result = ""
         self._indentation_level = 0
         self._tokens = tokens
         self.position = 0
+        self._symbol_table = symbol_table
 
     def process(self):
         self._process_class()
