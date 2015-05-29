@@ -1,5 +1,7 @@
 import collections
 
+from jack_syntax_analyzer.consts import FIELD, STATIC
+
 Symbol = collections.namedtuple("Symbol", ["identifier", "index", "type", "kind"])
 
 class ScopeSymbolTable(object):
@@ -37,11 +39,9 @@ class SubroutineSymbolTable(ScopeSymbolTable):
                                                     allowed_kinds=allowed_kinds)
 
 class ClassSymbolTable(ScopeSymbolTable):
-    FIELD="FIELD"
-    STATIC="STATIC"
 
     def __init__(self, class_name):
-        allowed_kinds = [self.VAR, self.ARGUMENT]
+        allowed_kinds = [FIELD, STATIC]
         super(ClassSymbolTable, self).__init__(class_name,
                                                allowed_kinds=allowed_kinds)
 

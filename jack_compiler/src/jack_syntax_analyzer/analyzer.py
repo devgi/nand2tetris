@@ -84,10 +84,16 @@ class JackAnalyzer(object):
             return isinstance(token, token_type)
 
     def _expect_keyword(self, *possible_keywords):
+        """
+        Expect the next token to be keyword from range of possible values.
+        :param possible_keywords:  The possible values of the keyboard
+        :return: The actual value of the keyword.
+        """
         assert self._is_next_token(Keyword, *possible_keywords), 'expected %s' % repr(possible_keywords)
 
         token = self._next_token()
         self._write_single_token(token)
+        return token.value
 
     def _expect_symbol(self, *possible_symbols):
         assert self._is_next_token(Symbol, *possible_symbols), 'expected %s' % repr(possible_symbols)
@@ -113,12 +119,17 @@ class JackAnalyzer(object):
         self._symbol_table.define_symbol(identifier, kind, variable_type)
 
     def _expect_type(self):
+        """
+        Expect type description. Type may be class name (identifier)
+        or native type (int, char, bool).
+        :return: The type.
+        """
         token = self._next_token()
         if isinstance(token, Identifier):
-            self._expect_identifier()
+            return self._expect_identifier()
 
         else:
-            self._expect_keyword(CHAR, BOOLEAN, INT)
+            return self._expect_keyword(CHAR, BOOLEAN, INT)
 
     def _process_class(self):
         with self._write_parsing_rule("class"):
@@ -134,17 +145,19 @@ class JackAnalyzer(object):
 
     def _expect_class_variable_declarations(self):
         while self._is_next_token(Keyword, FIELD, STATIC):
-            self._process_single_variable_declaration()
+            self._process_single_class_variable_declaration()
 
-    def _process_single_variable_declaration(self):
+    def _process_single_class_variable_declaration(self):
         # Look for class variable.
         with self._write_parsing_rule("classVarDec"):
             self._expect_keyword(FIELD, STATIC)
             self._expect_variable_declaration()
 
-    def _expect_variable_declaration(self):
-        self._expect_type()
-        self._expect_identifier()
+    def _expect_variable_declaration(self, kind):
+        type = self._expect_type()
+        identifier = self._expect_identifier()
+
+        self._symbol_table.define_symbol(identifier, kind, type)
 
         # Handle multiple variable declaration.
         while not self._is_next_token(Symbol, ";"):
