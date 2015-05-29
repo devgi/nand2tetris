@@ -1,23 +1,26 @@
 import contextlib
 
 from jack_syntax_analyzer.consts import (CLASS, FIELD, STATIC, BOOLEAN, CHAR,
-            INT, CONSTRUCTOR, FUNCTION, METHOD, VOID, VAR, LET, IF, WHILE, DO,
-            RETURN, ELSE, TRUE, FALSE, NULL, THIS, OPS, UNARY_OPS)
+                                         INT, CONSTRUCTOR, FUNCTION, METHOD, VOID, VAR, LET, IF, WHILE, DO,
+                                         RETURN, ELSE, TRUE, FALSE, NULL, THIS, OPS, UNARY_OPS)
 from jack_syntax_analyzer.tokenizer import (tokenize, Keyword, Symbol,
                                             Identifier, Integer, String)
 
-from jack_syntax_analyzer.symbol_table import SymbolTable
+from jack_syntax_analyzer.symbol_table import SymbolTable, SubroutineSymbolTable
 from jack_syntax_analyzer.vm_writer import VMBytecodeWriter
+
 
 def analyze(jack_file_content):
     tokens = tokenize(jack_file_content)
     return JackAnalyzer(tokens).process()
+
 
 class JackAnalyzer(object):
     """
     Analyze the syntax of jack file.
     This class should process only single file since it maintain a state.
     """
+
     def __init__(self, tokens, symbol_table=SymbolTable()):
         self._xml_result = ""
         self._indentation_level = 0
@@ -51,7 +54,7 @@ class JackAnalyzer(object):
 
 
     # def _write_token_list(self, tokens):
-    #     for token in tokens:
+    # for token in tokens:
     #         self._write_single_token(token)
 
     def _next_token(self):
@@ -96,10 +99,16 @@ class JackAnalyzer(object):
         return token.value
 
     def _expect_symbol(self, *possible_symbols):
+        """
+        Expect the next token to be symbol from range of possible values.
+        :param possible_symbols:  The possible values of the symbol
+        :return: The actual value of the symbol.
+        """
         assert self._is_next_token(Symbol, *possible_symbols), 'expected %s' % repr(possible_symbols)
 
         token = self._next_token()
         self._write_single_token(token)
+        return token.value
 
     def _expect_identifier(self):
         """
@@ -150,21 +159,27 @@ class JackAnalyzer(object):
     def _process_single_class_variable_declaration(self):
         # Look for class variable.
         with self._write_parsing_rule("classVarDec"):
-            self._expect_keyword(FIELD, STATIC)
-            self._expect_variable_declaration()
+            kind = self._expect_keyword(FIELD, STATIC)
+            self._expect_variable_declaration(kind)
 
     def _expect_variable_declaration(self, kind):
+        """
+        :return: the number of vars declared
+        """
         type = self._expect_type()
         identifier = self._expect_identifier()
 
         self._symbol_table.define_symbol(identifier, kind, type)
-
+        var_cnt = 1
         # Handle multiple variable declaration.
         while not self._is_next_token(Symbol, ";"):
+            var_cnt += 1
             self._expect_symbol(",")
-            self._expect_identifier()
+            identifier = self._expect_identifier()
+            self._symbol_table.define_symbol(identifier, kind, type)
 
         self._expect_symbol(";")
+        return var_cnt
 
     def _expect_subroutine_declarations(self):
         # Look for subroutine prefix
@@ -172,6 +187,7 @@ class JackAnalyzer(object):
             self._process_single_subroutine_declaration()
 
     def _process_single_subroutine_declaration(self):
+
         with self._write_parsing_rule("subroutineDec"):
             self._expect_keyword(CONSTRUCTOR, FUNCTION, METHOD)
 
@@ -180,11 +196,12 @@ class JackAnalyzer(object):
             else:
                 self._expect_type()
 
-            self._expect_identifier()
+            identifier = self._expect_identifier()
+            func_name = self._symbol_table.start_subroutine(identifier)
             self._expect_symbol("(")
             self._process_parameter_list()
             self._expect_symbol(")")
-            self._process_subroutine_body()
+            self._process_subroutine_body(func_name)
 
     def _process_parameter_list(self):
         with self._write_parsing_rule("parameterList"):
@@ -196,22 +213,28 @@ class JackAnalyzer(object):
                 else:
                     self._expect_symbol(",")
 
-                self._expect_type()
-                self._expect_identifier()
+                type = self._expect_type()
+                identifier = self._expect_identifier()
+                self._symbol_table.define_symbol(identifier, SubroutineSymbolTable.ARGUMENT, type)
 
-    def _process_subroutine_body(self):
+    def _process_subroutine_body(self, func_name):
         with self._write_parsing_rule("subroutineBody"):
             self._expect_symbol("{")
+            num_of_vars = 0
             while self._is_next_token(Keyword, VAR):
-                self._process_var_declaration()
+                num_of_vars += self._process_var_declaration()
+            self._vm_bytecode.write_function_declaration(func_name, num_of_vars)
 
             self._process_statements()
             self._expect_symbol("}")
 
     def _process_var_declaration(self):
+        """
+        :return: the number of vars declared
+        """
         with self._write_parsing_rule("varDec"):
             self._expect_keyword(VAR)
-            self._expect_variable_declaration()
+            return self._expect_variable_declaration(SubroutineSymbolTable.VAR)
 
     def _process_statements(self):
         with self._write_parsing_rule("statements"):
@@ -282,20 +305,26 @@ class JackAnalyzer(object):
             self._expect_keyword(DO)
             self._expect_subroutine_call()
             self._expect_symbol(";")
+            self._vm_bytecode.write_pop('temp', 0)
+
 
     def _expect_subroutine_call(self):
         # From some reason the book state that subroutineCall is parsing rule
         # but in the example its not so, ..
-        self._expect_identifier()
+        first_identifier = self._expect_identifier()
 
         if self._is_next_token(Symbol, "."):
             # class or variable invocation, else direct invocation of
             # method of this class.
             self._expect_symbol(".")
-            self._expect_identifier()
+            second_identifier = self._expect_identifier()
+            func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier, class_name=first_identifier)
+        else:
+            func_name = self._symbol_table.create_mangled_name(subroutine_name=first_identifier)
 
         self._expect_symbol("(")
-        self._process_expression_list()
+        num_of_args = self._process_expression_list()
+        self._vm_bytecode.write_method_call(func_name, num_of_args)
         self._expect_symbol(")")
 
 
@@ -304,27 +333,36 @@ class JackAnalyzer(object):
             self._expect_keyword(RETURN)
             if not self._is_next_token(Symbol, ";"):
                 self._process_expression()
+            else:
+                self._vm_bytecode.write_push('constant', 0)
             self._expect_symbol(";")
+            self._vm_bytecode.write_return()
 
     def _process_expression(self):
         with self._write_parsing_rule("expression"):
             self._process_term()
 
             if self._is_next_token(Symbol, *OPS):
-                self._expect_symbol(*OPS)
+                op = self._expect_symbol(*OPS)
                 self._process_term()
+                self._vm_bytecode.write_binary_operation(op)
+
 
     def _process_expression_list(self):
+        """
+        :return: The number of expressions.
+        """
         with self._write_parsing_rule("expressionList"):
             # need to overlook. but since expression list is always
             # surrounded by parenthesis we just check for )
-            first_expression = True
+
+            exp_cnt = 0
             while not self._is_next_token(Symbol, ")"):
-                if first_expression:
-                    first_expression = False
-                else:
+                if exp_cnt:
                     self._expect_symbol(",")
+                exp_cnt += 1
                 self._process_expression()
+        return exp_cnt
 
     def _process_term(self):
         with self._write_parsing_rule("term"):
@@ -332,6 +370,7 @@ class JackAnalyzer(object):
 
             # Handle integer const
             if isinstance(token, Integer):
+                self._vm_bytecode.write_push('constant', token.value)
                 self._write_single_token(token)
                 return
 

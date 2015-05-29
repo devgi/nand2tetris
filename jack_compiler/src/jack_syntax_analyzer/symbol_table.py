@@ -76,10 +76,15 @@ class SymbolTable(object):
         # TODO: may asset when duplicate subroutines declared?
         subroutine_scope = SubroutineSymbolTable(subroutine_name)
         self._current_subroutine_scope = subroutine_scope
+        return self.create_mangled_name(subroutine_name)
 
+    def create_mangled_name(self, subroutine_name, class_name=None):
+        if not class_name:
+            class_name = self._current_class_scope.scope_name
         return "{class_name}.{subroutine_name}".format(
-                class_name=self._current_class_scope.scope_name,
+                class_name=class_name,
                 subroutine_name=subroutine_name)
+
 
     def get(self, identifier):
         assert self._current_class_scope , "Can't query without class scope."
