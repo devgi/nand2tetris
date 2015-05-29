@@ -7,7 +7,7 @@ from jack_syntax_analyzer.tokenizer import (tokenize, Keyword, Symbol,
                                             Identifier, Integer, String)
 
 from jack_syntax_analyzer.symbol_table import SymbolTable
-
+from jack_syntax_analyzer.vm_writer import VMBytecodeWriter
 
 def analyze(jack_file_content):
     tokens = tokenize(jack_file_content)
@@ -24,11 +24,12 @@ class JackAnalyzer(object):
         self._tokens = tokens
         self.position = 0
         self._symbol_table = symbol_table
+        self._vm_bytecode = VMBytecodeWriter()
 
     def process(self):
         self._process_class()
         assert len(self._tokens) == self.position, "Verify that there are no leftover"
-        return self._xml_result
+        return (self._xml_result, self._vm_bytecode.save())
 
     def _write_to_xml(self, node):
         indentation = (2 * " ") * self._indentation_level
@@ -95,9 +96,21 @@ class JackAnalyzer(object):
         self._write_single_token(token)
 
     def _expect_identifier(self):
+        """
+        Expect identifier token.
+        :return: The value of the identifier.
+        """
         token = self._next_token()
         assert isinstance(token, Identifier), 'expected identifier'
         self._write_single_token(token)
+        return token.value
+
+    def _expected_symbol_definition(self, kind, variable_type):
+        """
+        Expects a symbol definition (as oppose to usage).
+        """
+        identifier = self._expect_identifier()
+        self._symbol_table.define_symbol(identifier, kind, variable_type)
 
     def _expect_type(self):
         token = self._next_token()
@@ -110,7 +123,10 @@ class JackAnalyzer(object):
     def _process_class(self):
         with self._write_parsing_rule("class"):
             self._expect_keyword(CLASS)
-            self._expect_identifier()
+
+            class_name = self._expect_identifier()
+            self._symbol_table.start_class(class_name)
+
             self._expect_symbol("{")
             self._expect_class_variable_declarations()
             self._expect_subroutine_declarations()

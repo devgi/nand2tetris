@@ -92,5 +92,12 @@ class SymbolTable(object):
 
         raise RuntimeError("Couldn't resolve identifier %s" % identifier)
 
+    def define_symbol(self, identifier, kind, type):
+        if self._current_subroutine_scope:
+            self._current_subroutine_scope.define_symbol(identifier, kind, type)
+        elif self._current_class_scope:
+            self._current_class_scope.define_symbol(identifier, kind, type)
+        else:
+            raise RuntimeError("Can't find scope! %s" % identifier)
 
 
