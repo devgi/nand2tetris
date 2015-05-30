@@ -1,0 +1,119 @@
+function Tile.new 0
+push constant 6
+call Memory.alloc 1
+pop pointer 0
+push constant 256
+push constant 4
+call Math.divide 2
+push constant 1
+sub
+pop this 4
+push this 4
+push argument 1
+call Math.multiply 2
+pop this 0
+push this 4
+push argument 0
+call Math.multiply 2
+pop this 1
+push constant 2
+push constant 6
+push argument 0
+call Math.multiply 2
+add
+pop this 2
+push constant 2
+push constant 8
+push argument 1
+call Math.multiply 2
+add
+pop this 3
+push constant 0
+pop this 5
+push pointer 0
+call Tile.draw 1
+pop temp 0
+push pointer 0
+return
+function Tile.setValue 0
+push argument 0
+pop pointer 0
+push this 5
+push argument 1
+eq
+not
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push argument 1
+pop this 5
+push pointer 0
+call Tile.draw 1
+pop temp 0
+push constant 0
+not
+return
+goto IF_END0
+label IF_FALSE0
+push constant 0
+return
+label IF_END0
+function Tile.getValue 0
+push argument 0
+pop pointer 0
+push this 5
+return
+function Tile.draw 0
+push argument 0
+pop pointer 0
+push constant 0
+not
+call Screen.setColor 1
+pop temp 0
+push this 0
+push this 1
+push this 0
+push this 4
+add
+push this 1
+push this 4
+add
+call Screen.drawRectangle 4
+pop temp 0
+push constant 0
+call Screen.setColor 1
+pop temp 0
+push this 0
+push constant 2
+add
+push this 1
+push constant 2
+add
+push this 0
+push this 4
+add
+push constant 2
+sub
+push this 1
+push this 4
+add
+push constant 2
+sub
+call Screen.drawRectangle 4
+pop temp 0
+push this 5
+push constant 0
+gt
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push this 2
+push this 3
+call Output.moveCursor 2
+pop temp 0
+push this 5
+call Output.printInt 1
+pop temp 0
+label IF_FALSE0
+push constant 0
+return

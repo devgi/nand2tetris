@@ -1,7 +1,7 @@
 import re
 
 from xml.sax.saxutils import escape
-from jack_syntax_analyzer.consts import KEYWORDS, SYMBOLS
+from jack_compiler.consts import KEYWORDS, SYMBOLS
 
 class Token(object):
     def __init__(self, type, value):

@@ -1,11 +1,11 @@
-from jack_syntax_analyzer.analyzer import JackCompiler
+from jack_compiler.compiler import JackCompiler
 
 
 def test_compiler(directory_to_compile):
     compiler = JackCompiler()
 
     for jack_file in directory_to_compile.visit("*.jack"):
-        _, bytecode = compiler.analyze(jack_file.read())
+        _, bytecode = compiler.compile(jack_file.read())
 
         print bytecode
 

@@ -1,0 +1,440 @@
+class Game2048 {
+
+    // The tile matrix
+    field Random rand;
+    field Array tileMatrix;
+    field int score;
+    field int numberOfMoves;
+
+    /** Constructs a new Square Game. */
+    constructor Game2048 new(Random randomGenerator) {
+        let rand = randomGenerator;
+        do initBoard();
+        return this;
+    }
+    
+    method void initBoard() {
+        var int row ,column;
+        var Array tileMatrixRow;
+        var Tile currentTile;
+        
+        // clean the screen.
+        do Screen.clearScreen();
+        let score = 0;
+        let numberOfMoves = 0;
+        
+        let tileMatrix = Array.new(4);
+        let row = 0;
+        while (row < 4) {
+            let tileMatrix[row] = Array.new(4);
+            let tileMatrixRow = tileMatrix[row];
+            let column = 0;
+            while (column < 4) {
+                let currentTile = Tile.new(row, column);
+                let tileMatrixRow[column] = currentTile;
+                let column = column+1;
+            }
+            let row = row+1;
+        }
+        
+        // After initialize the board set two random tiles values
+        do setRandomTile();
+        do setRandomTile();
+        
+        // Print the score.
+        do updateScores();
+        do printHelp();
+        return;
+    }
+    
+    method Tile getTile(int row, int column) {
+        var Array tileMatrixRow;
+        var Tile result;
+        
+        let tileMatrixRow = tileMatrix[row];
+        let result = tileMatrixRow[column];
+        return result;
+    }
+    
+    method void setRandomTile() {
+        // Set random tile (which is not initialized) value to be 2 or 4
+        // 4 with probability (1/10)
+        var int row, column, freeIndex;
+        var Array freeTiles;
+        var Tile tile;
+        
+        let freeTiles = Array.new(16);
+        let freeIndex = 0;
+        let row = 0;
+        while (row < 4) {
+            let column = 0;
+            while (column < 4) {
+                let tile = getTile(row, column);
+                if (tile.getValue() = 0) {
+                    let freeTiles[freeIndex] = tile;
+                    let freeIndex = freeIndex + 1;
+                }
+                let column = column + 1;
+            }
+            let row = row + 1;
+        }
+        
+        if (freeIndex > 0) {
+            let tile = freeTiles[rand.randRange(freeIndex - 1)];
+            
+            // rand range 0..9 ( if 0 -> put 4 else put 2)
+            if (rand.randRange(9) = 0) {
+                do tile.setValue(4);
+            } 
+            else 
+            {
+                do tile.setValue(2);
+            }    
+        } 
+        
+        return;
+    }
+
+    /** Deallocates the object's memory. */
+    method void dispose() {
+        return;
+    }
+
+    method boolean moveUp() {
+        var int row, column;
+        var Tile currentTile;
+        var Tile nextTile;
+        var Array vector;
+        var boolean changed;
+        
+        let changed =false;
+        let column = 0;
+        
+        while (column < 4) {
+            let row = 0;
+            let vector = Array.new(4);
+            
+            while (row < 4) {
+                let currentTile = getTile(row, column);
+                let vector[row] = currentTile.getValue();
+                let row = row + 1;
+            }
+            
+            let row = 0;
+            let vector = processVector(vector);
+           
+            while (row < 4) {
+               let currentTile = getTile(row, column);
+               let changed = changed | currentTile.setValue(vector[row]);
+               let row = row + 1;
+            }
+            
+            let column = column + 1;
+        }
+        
+        return changed;
+    }
+    
+    method boolean moveDown() {
+        var int row, column;
+        var Tile currentTile;
+        var Tile nextTile;
+        var Array vector;
+        var boolean changed;
+        
+        let changed =false;
+        let column = 0;
+        
+        while (column < 4) {
+            let row = 0;
+            let vector = Array.new(4);
+            
+            while (row < 4) {
+                let currentTile = getTile(3 - row, column);
+                let vector[row] = currentTile.getValue();
+                let row = row + 1;
+            }
+            
+            let row = 0;
+            let vector = processVector(vector);
+           
+            while (row < 4) {
+               let currentTile = getTile(3 - row, column);
+               let changed = changed | currentTile.setValue(vector[row]);
+               let row = row + 1;
+            }
+            
+            let column = column + 1;
+        }
+        
+        return changed;
+    }
+    
+    method boolean moveRight() {
+        var int row, column;
+        var Tile currentTile;
+        var Tile nextTile;
+        var Array vector;
+        var boolean changed;
+        
+        let changed =false;
+        let row = 0;
+        
+        while (row < 4) {
+            let column = 0;
+            let vector = Array.new(4);
+            
+            while (column < 4) {
+                let currentTile = getTile(row, 3 - column);
+                let vector[column] = currentTile.getValue();
+                let column = column + 1;
+            }
+            
+            let column = 0;
+            let vector = processVector(vector);
+           
+            while (column < 4) {
+               let currentTile = getTile(row, 3 - column);
+               let changed = changed | currentTile.setValue(vector[column]);
+               let column = column + 1;
+            }
+            
+            let row = row + 1;
+        }
+        
+        return changed;
+    }
+    
+    method boolean moveLeft() {
+        var int row, column;
+        var Tile currentTile;
+        var Tile nextTile;
+        var Array vector;
+        var boolean changed;
+        
+        let changed =false;
+        let row = 0;
+        
+        while (row < 4) {
+            let column = 0;
+            let vector = Array.new(4);
+            
+            while (column < 4) {
+                let currentTile = getTile(row, column);
+                let vector[column] = currentTile.getValue();
+                let column = column + 1;
+            }
+            
+            let column = 0;
+            let vector = processVector(vector);
+           
+            while (column < 4) {
+               let currentTile = getTile(row, column);
+               let changed = changed | currentTile.setValue(vector[column]);
+               let column = column + 1;
+            }
+            
+            let row = row + 1;
+        }
+        
+        return changed;
+    }
+    
+    method Array processVector(Array vector) {
+        /**
+        Get a vector represent the values of row or column in their appropriate
+        processing order (For instance the row 0 1 2 4 should remain the same if right
+        is pressed but should be revered if left is pressed).
+        Return how this vector should look like at the next step.
+        **/
+        var Array result;
+        var int index, resultIndex;
+        
+        // Switcharoo 
+        let result = Array.new(4);
+        let index = 0;
+        let resultIndex = 0;
+        
+        let vector = cleanArrayFromZeros(vector);
+        
+        // Perform additions if needed.
+        while (index + 1 < 4) {
+            if (vector[index] = vector[index + 1] ) {
+                let result[resultIndex] = 2 * vector[index];
+                let score = score + result[resultIndex];
+                let index = index + 2;
+            } else {
+                let result[resultIndex] = vector[index];
+                let index = index + 1;
+            }
+            
+            // anyway increase result index.
+            let resultIndex = resultIndex + 1;
+            
+            if (vector[index] = 0) {
+                let index = 4;
+            }
+        }
+        // Copy the last value to the last free cell. 
+        let result[resultIndex] = vector[3];
+        return result;
+    }
+    
+    method Array cleanArrayFromZeros(Array vector) {
+        var int index, resultIndex;
+        var Array result;
+        
+        let index = 0;
+        let resultIndex = 0;
+        let result = Array.new(4);
+        
+        // Skip zeros.
+        while (index < 4) {
+            
+            if (~(vector[index] = 0)) {
+                let result[resultIndex] = vector[index];
+                let resultIndex = resultIndex + 1;
+            }
+            let index = index + 1 ;
+        }
+        return result;
+    }
+    
+    method boolean isGameOver() {
+        // Check for free tiles
+        var int row, column;
+        var Tile tile, neighbour;
+        let row = 0;
+        while (row < 4) {
+            let column = 0;
+            while (column < 4) {
+                let tile = getTile(row, column);
+                if (tile.getValue() = 0) {
+                    return false;
+                }
+                // left
+                if (row + 1 < 4) {
+                    let neighbour = getTile(row + 1, column);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // right
+                if (row  >  0) {
+                    let neighbour = getTile(row - 1, column);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // up
+                if (column + 1 < 4) {
+                    let neighbour = getTile(row, column + 1);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                // down
+                if (column  > 0){
+                    let neighbour = getTile(row, column - 1);
+                    if (neighbour.getValue() = tile.getValue()) {
+                        return false;
+                    }
+                }
+                let column = column + 1;
+            }
+            let row = row + 1;
+        }
+        
+        return true;
+    }
+    
+    method void updateScores() {
+        do Output.moveCursor(4 , 40);
+        do Output.printString("Score: ");
+        do Output.printInt(score);
+        
+        do Output.moveCursor(6 , 40);
+        do Output.printString("Moves: ");
+        do Output.printInt(numberOfMoves);
+        return;
+    }
+    
+    method void printHelp() {
+        do Output.moveCursor(20 , 40);
+        do Output.printString("Move with the arrows");
+        do Output.moveCursor(21 , 40);
+        do Output.printString("N - for new game");
+        do Output.moveCursor(22 , 40);
+        do Output.printString("Q - for exit");
+        return;
+    }
+    
+    /** Starts the game. Handles inputs from the user that control
+     *  the square's movement, direction and size. */
+    method void run() {
+        var char key;
+        var boolean exit;
+        var boolean changed;
+        
+        let exit = false;
+
+        while (~exit) {
+            let changed = false;
+            // waits for a key to be pressed.
+            while (key = 0) {
+                let key = Keyboard.keyPressed();
+            }
+
+            // Q - Quite
+            if (key = 81) {
+                let exit = true;
+            }
+            
+            // N - new game
+            if (key = 78) {
+                do initBoard();
+            }
+            
+            // Up
+            if (key = 131) {
+                let changed = moveUp();
+            }
+            
+            // Down
+            if (key = 133) {
+                let changed = moveDown();
+            }
+            
+            // Left
+            if (key = 130) {
+                let changed = moveLeft();
+            }
+            
+            // Right
+            if (key = 132) {
+                let changed = moveRight();
+            }
+            
+            if (changed) {
+                // Update number of moves.
+                let numberOfMoves = numberOfMoves + 1;
+                do setRandomTile();
+                do updateScores();
+            }
+            
+            // Check if more moves available.
+            if (isGameOver()) {
+                do Output.moveCursor(17 , 36);
+                do Output.printString("** GAME OVER **");
+            }
+          
+            // waits for the key to be released.
+            while (~(key = 0)) {
+                let key = Keyboard.keyPressed();
+            }
+        }
+            
+        return;
+        
+    }
+}
