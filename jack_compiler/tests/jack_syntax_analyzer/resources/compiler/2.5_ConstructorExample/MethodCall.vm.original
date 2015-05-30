@@ -1,0 +1,25 @@
+function MethodCall.new 0
+push constant 4
+call Memory.alloc 1
+pop pointer 0
+push pointer 0
+return
+function MethodCall.foo 0
+push argument 0
+pop pointer 0
+push argument 1
+push argument 2
+add
+return
+function MethodCall.main 3
+call MethodCall.new 0
+pop local 1
+push local 1
+push constant 1
+push constant 2
+call MethodCall.foo 3
+pop local 0
+push constant 0
+pop local 2
+push constant 0
+return

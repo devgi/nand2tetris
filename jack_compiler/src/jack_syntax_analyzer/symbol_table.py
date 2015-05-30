@@ -1,6 +1,6 @@
 import collections
 
-from jack_syntax_analyzer.consts import FIELD, STATIC
+from jack_syntax_analyzer.consts import FIELD, STATIC, FUNCTION, METHOD
 
 Symbol = collections.namedtuple("Symbol", ["identifier", "index", "type", "kind"])
 
@@ -52,6 +52,7 @@ class SymbolTable(object):
         self._class_scopes = dict()
         self._current_class_scope = None
         self._current_subroutine_scope = None
+        self.subroutine_type = None
 
     def start_class(self, class_name):
         """
@@ -64,10 +65,11 @@ class SymbolTable(object):
         class_scope = ClassSymbolTable(class_name)
         self._class_scopes[class_name] = class_scope
         self._current_class_scope = class_scope
+        self.subroutine_type = None
         self._current_subroutine_scope = None
         return class_name
 
-    def start_subroutine(self, subroutine_name):
+    def start_subroutine(self, subroutine_name, subroutine_type):
         """
         Declare the beginning of subroutine scope.
         :param subroutine_name: The name of the subroutine.
@@ -76,6 +78,7 @@ class SymbolTable(object):
         # TODO: may asset when duplicate subroutines declared?
         subroutine_scope = SubroutineSymbolTable(subroutine_name)
         self._current_subroutine_scope = subroutine_scope
+        self.subroutine_type = subroutine_type
         return self.create_mangled_name(subroutine_name)
 
     def create_mangled_name(self, subroutine_name, class_name=None):
@@ -88,14 +91,21 @@ class SymbolTable(object):
 
     def get(self, identifier):
         assert self._current_class_scope , "Can't query without class scope."
-        result = None
+        symbol = None
         if self._current_subroutine_scope and self._current_subroutine_scope.get(identifier):
-            return self._current_subroutine_scope.get(identifier)
+            symbol = self._current_subroutine_scope.get(identifier)
 
-        if self._current_class_scope.get(identifier):
-           return self._current_class_scope.get(identifier)
+        if not symbol and self._current_class_scope.get(identifier):
+            symbol = self._current_class_scope.get(identifier)
 
-        raise RuntimeError("Couldn't resolve identifier %s" % identifier)
+        if symbol and self.subroutine_type == METHOD and symbol.kind == SubroutineSymbolTable.ARGUMENT:
+            # when we are inside a method the first arg is "this"
+            symbol = symbol._replace(index=symbol.index + 1)
+
+        if symbol and self.subroutine_type == FUNCTION:
+            assert symbol.kind != FIELD
+
+        return symbol
 
     def define_symbol(self, identifier, kind, type):
         if self._current_subroutine_scope:

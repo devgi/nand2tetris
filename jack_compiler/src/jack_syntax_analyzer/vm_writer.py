@@ -1,6 +1,6 @@
 import os
 from jack_syntax_analyzer import consts
-from jack_syntax_analyzer.symbol_table import SubroutineSymbolTable
+from jack_syntax_analyzer.symbol_table import SubroutineSymbolTable, ClassSymbolTable
 
 
 class VMBytecodeWriter(object):
@@ -26,8 +26,18 @@ class VMBytecodeWriter(object):
         self._while_index = 0
         self._write('function {name} {num}'.format(name=name, num=num_of_local_vars))
 
+    def write_constructor(self, num_of_class_fields):
+        self.write_push('constant', num_of_class_fields)
+        self.write_method_call('Memory.alloc', 1)
+        self.write_pop('pointer', 0)
+
+    def write_method_declaration(self):
+        self.write_push('argument', 0)
+        self.write_pop('pointer', 0)
+
     def write_method_call(self, function_name, num_of_args):
         self._write('call {name} {num}'.format(name=function_name, num=num_of_args))
+
 
     def write_push(self, segment, index):
         self._write('push {segment} {index}'.format(segment=segment,index=index))
@@ -69,6 +79,8 @@ class VMBytecodeWriter(object):
         kind_mapping = {
             SubroutineSymbolTable.VAR: 'local',
             SubroutineSymbolTable.ARGUMENT: 'argument',
+            consts.FIELD: 'this',
+            consts.STATIC: 'static',
         }
         return kind_mapping[symbol_kind]
 
@@ -78,6 +90,12 @@ class VMBytecodeWriter(object):
             self._write('not')
         elif value == consts.FALSE:
             self.write_push('constant', 0)
+        elif value == consts.THIS:
+            self.write_push('pointer', 0)
+        elif value == consts.NULL:
+            self.write_push('constant', 0)
+        else:
+            raise ValueError(value)
 
     def write_label(self, label):
         self._write('label {}'.format(label))
@@ -112,5 +130,22 @@ class VMBytecodeWriter(object):
         self.write_goto(self.IF_END_LABEL.format(index=index))
         self.write_label(self.ELSE_LABEL.format(index=index))
 
-    def write_if_end(self, index):
-        self.write_label(self.IF_END_LABEL.format(index=index))
+    def write_if_end(self, index, is_else):
+        if is_else:
+            self.write_label(self.IF_END_LABEL.format(index=index))
+        else:
+            self.write_label(self.ELSE_LABEL.format(index=index))
+
+    def write_string(self, string):
+        self.write_push('constant', len(string))
+        self.write_method_call('String.new', 1)
+        for c in string:
+            self.write_push('constant', ord(c))
+            # 2 arguments because the string reference was never popped
+            self.write_method_call('String.appendChar', 2)
+
+    def write_array_assignment(self):
+        self.write_pop('temp', 0)
+        self.write_pop('pointer', 1)
+        self.write_push('temp', 0)
+        self.write_pop('that', 0)

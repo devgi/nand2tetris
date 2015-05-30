@@ -152,19 +152,30 @@ class JackAnalyzer(object):
             self._symbol_table.start_class(class_name)
 
             self._expect_symbol("{")
-            self._expect_class_variable_declarations()
-            self._expect_subroutine_declarations()
+            num_of_fields = self._expect_class_variable_declarations()
+            self._expect_subroutine_declarations(num_of_fields)
             self._expect_symbol("}")
 
     def _expect_class_variable_declarations(self):
+        """
+        :return: the number of class fields (not static)
+        """
+        cnt = 0
         while self._is_next_token(Keyword, FIELD, STATIC):
-            self._process_single_class_variable_declaration()
+            if self._is_next_token(Keyword, FIELD):
+                cnt += self._process_single_class_variable_declaration()
+            else:
+                self._process_single_class_variable_declaration()
+        return cnt
 
     def _process_single_class_variable_declaration(self):
+        """
+        :return: the number of variables declared
+        """
         # Look for class variable.
         with self._write_parsing_rule("classVarDec"):
             kind = self._expect_keyword(FIELD, STATIC)
-            self._expect_variable_declaration(kind)
+            return self._expect_variable_declaration(kind)
 
     def _expect_variable_declaration(self, kind):
         """
@@ -185,15 +196,14 @@ class JackAnalyzer(object):
         self._expect_symbol(";")
         return var_cnt
 
-    def _expect_subroutine_declarations(self):
+    def _expect_subroutine_declarations(self, num_of_class_fields=None):
         # Look for subroutine prefix
         while self._is_next_token(Keyword, CONSTRUCTOR, FUNCTION, METHOD):
-            self._process_single_subroutine_declaration()
+            self._process_single_subroutine_declaration(num_of_class_fields)
 
-    def _process_single_subroutine_declaration(self):
-
+    def _process_single_subroutine_declaration(self, num_of_class_fields=None):
         with self._write_parsing_rule("subroutineDec"):
-            self._expect_keyword(CONSTRUCTOR, FUNCTION, METHOD)
+            subroutine_type = self._expect_keyword(CONSTRUCTOR, FUNCTION, METHOD)
 
             if self._is_next_token(Keyword, VOID):
                 self._expect_keyword(VOID)
@@ -201,11 +211,11 @@ class JackAnalyzer(object):
                 self._expect_type()
 
             identifier = self._expect_identifier()
-            func_name = self._symbol_table.start_subroutine(identifier)
+            func_name = self._symbol_table.start_subroutine(identifier, subroutine_type)
             self._expect_symbol("(")
             self._process_parameter_list()
             self._expect_symbol(")")
-            self._process_subroutine_body(func_name)
+            self._process_subroutine_body(func_name, subroutine_type, num_of_class_fields)
 
     def _process_parameter_list(self):
         with self._write_parsing_rule("parameterList"):
@@ -221,14 +231,17 @@ class JackAnalyzer(object):
                 identifier = self._expect_identifier()
                 self._symbol_table.define_symbol(identifier, SubroutineSymbolTable.ARGUMENT, type)
 
-    def _process_subroutine_body(self, func_name):
+    def _process_subroutine_body(self, func_name, subroutine_type, num_of_class_fields=None):
         with self._write_parsing_rule("subroutineBody"):
             self._expect_symbol("{")
             num_of_vars = 0
             while self._is_next_token(Keyword, VAR):
                 num_of_vars += self._process_var_declaration()
             self._vm_bytecode.write_function_declaration(func_name, num_of_vars)
-
+            if subroutine_type == CONSTRUCTOR:
+                self._vm_bytecode.write_constructor(num_of_class_fields)
+            elif subroutine_type == METHOD:
+                self._vm_bytecode.write_method_declaration()
             self._process_statements()
             self._expect_symbol("}")
 
@@ -269,14 +282,21 @@ class JackAnalyzer(object):
             identifier = self._expect_identifier()
             symbol = self._symbol_table.get(identifier)
             # Handle array indexing
+            is_array = False
             if self._is_next_token(Symbol, "["):
+                is_array = True
                 self._expect_symbol("[")
                 self._process_expression()
                 self._expect_symbol("]")
+                self._vm_bytecode.write_push_symbol(symbol)
+                self._vm_bytecode.write_binary_operation('+')
             self._expect_symbol("=")
             self._process_expression()
             self._expect_symbol(";")
-            self._vm_bytecode.write_pop_symbol(symbol)
+            if is_array:
+                self._vm_bytecode.write_array_assignment()
+            else:
+                self._vm_bytecode.write_pop_symbol(symbol)
 
     def _process_if_statement(self):
         with self._write_parsing_rule("ifStatement"):
@@ -288,13 +308,15 @@ class JackAnalyzer(object):
             self._expect_symbol("{")
             self._process_statements()
             self._expect_symbol("}")
-            self._vm_bytecode.write_else(if_index)
             if self._is_next_token(Keyword, ELSE):
+                self._vm_bytecode.write_else(if_index)
                 self._expect_keyword(ELSE)
                 self._expect_symbol("{")
                 self._process_statements()
                 self._expect_symbol("}")
-            self._vm_bytecode.write_if_end(if_index)
+                self._vm_bytecode.write_if_end(if_index, True)
+            else:
+                self._vm_bytecode.write_if_end(if_index, False)
 
     def _process_while_statement(self):
         with self._write_parsing_rule("whileStatement"):
@@ -322,20 +344,33 @@ class JackAnalyzer(object):
         # From some reason the book state that subroutineCall is parsing rule
         # but in the example its not so, ..
         first_identifier = self._expect_identifier()
-
+        is_method = None
         if self._is_next_token(Symbol, "."):
             # class or variable invocation, else direct invocation of
             # method of this class.
             self._expect_symbol(".")
             second_identifier = self._expect_identifier()
-            func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier,
+            symbol = self._symbol_table.get(first_identifier)
+            if symbol:
+                func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier,
+                                                               class_name=symbol.type)
+                self._vm_bytecode.write_push_symbol(symbol)
+                is_method = True
+            else:
+                func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier,
                                                                class_name=first_identifier)
         else:
             func_name = self._symbol_table.create_mangled_name(subroutine_name=first_identifier)
+            self._vm_bytecode.write_push('pointer', 0)
+            is_method = True
 
         self._expect_symbol("(")
+
         num_of_args = self._process_expression_list()
-        self._vm_bytecode.write_method_call(func_name, num_of_args)
+        if is_method:
+            self._vm_bytecode.write_method_call(func_name, num_of_args + 1)
+        else:
+            self._vm_bytecode.write_method_call(func_name, num_of_args)
         self._expect_symbol(")")
 
 
@@ -381,13 +416,14 @@ class JackAnalyzer(object):
 
             # Handle integer const
             if isinstance(token, Integer):
-                self._vm_bytecode.write_push('constant', token.value)
                 self._write_single_token(token)
+                self._vm_bytecode.write_push('constant', token.value)
                 return
 
             # Handle String const
             elif isinstance(token, String):
                 self._write_single_token(token)
+                self._vm_bytecode.write_string(token.value)
                 return
 
             # Handle Keyword const
@@ -398,10 +434,16 @@ class JackAnalyzer(object):
 
             # Handle array indexing:
             elif self._is_next_array_indexing():
-                self._expect_identifier()
+                identifier = self._expect_identifier()
+                symbol = self._symbol_table.get(identifier)
                 self._expect_symbol("[")
                 self._process_expression()
                 self._expect_symbol("]")
+                #TODO: move to vm writer
+                self._vm_bytecode.write_push_symbol(symbol)
+                self._vm_bytecode.write_binary_operation('+')
+                self._vm_bytecode.write_pop('pointer',1)
+                self._vm_bytecode.write_push('that',0)
 
             # Handle subroutine call
             elif self._is_next_subroutine_call():
