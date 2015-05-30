@@ -59,7 +59,7 @@ class JackAnalyzer(object):
 
     # def _write_token_list(self, tokens):
     # for token in tokens:
-    #         self._write_single_token(token)
+    # self._write_single_token(token)
 
     def _next_token(self):
         return self._tokens[self.position]
@@ -266,17 +266,17 @@ class JackAnalyzer(object):
     def _process_let_statement(self):
         with self._write_parsing_rule("letStatement"):
             self._expect_keyword(LET)
-            self._expect_identifier()
-
+            identifier = self._expect_identifier()
+            symbol = self._symbol_table.get(identifier)
             # Handle array indexing
             if self._is_next_token(Symbol, "["):
                 self._expect_symbol("[")
                 self._process_expression()
                 self._expect_symbol("]")
-
             self._expect_symbol("=")
             self._process_expression()
             self._expect_symbol(";")
+            self._vm_bytecode.write_pop_symbol(symbol)
 
     def _process_if_statement(self):
         with self._write_parsing_rule("ifStatement"):
@@ -284,25 +284,31 @@ class JackAnalyzer(object):
             self._expect_symbol("(")
             self._process_expression()
             self._expect_symbol(")")
+            if_index = self._vm_bytecode.write_if_start()
             self._expect_symbol("{")
             self._process_statements()
             self._expect_symbol("}")
-
+            self._vm_bytecode.write_else(if_index)
             if self._is_next_token(Keyword, ELSE):
                 self._expect_keyword(ELSE)
                 self._expect_symbol("{")
                 self._process_statements()
                 self._expect_symbol("}")
+            self._vm_bytecode.write_if_end(if_index)
 
     def _process_while_statement(self):
         with self._write_parsing_rule("whileStatement"):
             self._expect_keyword(WHILE)
+            while_index = self._vm_bytecode.write_while_declaration_start()
             self._expect_symbol("(")
             self._process_expression()
             self._expect_symbol(")")
+            self._vm_bytecode.write_while_declaration_end(while_index)
             self._expect_symbol("{")
             self._process_statements()
             self._expect_symbol("}")
+            self._vm_bytecode.write_while_end(while_index)
+
 
     def _process_do_statement(self):
         with self._write_parsing_rule("doStatement"):
@@ -322,7 +328,8 @@ class JackAnalyzer(object):
             # method of this class.
             self._expect_symbol(".")
             second_identifier = self._expect_identifier()
-            func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier, class_name=first_identifier)
+            func_name = self._symbol_table.create_mangled_name(subroutine_name=second_identifier,
+                                                               class_name=first_identifier)
         else:
             func_name = self._symbol_table.create_mangled_name(subroutine_name=first_identifier)
 
@@ -385,7 +392,8 @@ class JackAnalyzer(object):
 
             # Handle Keyword const
             elif isinstance(token, Keyword):
-                self._expect_keyword(TRUE, FALSE, NULL, THIS)
+                value = self._expect_keyword(TRUE, FALSE, NULL, THIS)
+                self._vm_bytecode.write_builtin_value(value)
                 return
 
             # Handle array indexing:
@@ -401,7 +409,9 @@ class JackAnalyzer(object):
 
             # Handle variable
             elif isinstance(token, Identifier):
-                self._expect_identifier()
+                identifier = self._expect_identifier()
+                symbol = self._symbol_table.get(identifier)
+                self._vm_bytecode.write_push_symbol(symbol)
 
             # Handle ( expression )
             elif self._is_next_token(Symbol, "("):
@@ -411,8 +421,9 @@ class JackAnalyzer(object):
 
             # Handle unaryOps - ~
             elif self._is_next_token(Symbol, *UNARY_OPS):
-                self._expect_symbol(*UNARY_OPS)
+                op = self._expect_symbol(*UNARY_OPS)
                 self._process_term()
+                self._vm_bytecode.write_unary_operation(op)
 
             else:
                 raise RuntimeError("Unexpected?")
