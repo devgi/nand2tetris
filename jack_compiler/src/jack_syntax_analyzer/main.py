@@ -1,7 +1,7 @@
 import sys
 import os
 
-from jack_syntax_analyzer.analyzer import analyze
+from jack_syntax_analyzer.analyzer import JackCompiler
 
 def parse_args():
     if len(sys.argv) < 2:
@@ -16,12 +16,14 @@ def main():
     else:
         inputs = [input_path]
 
+    compiler = JackCompiler()
+
     for input_file in inputs:
         jack_file_content = open(input_file).read()
         xml_output_file = os.path.splitext(input_file)[0] + ".xml"
         vm_bytecode_file = os.path.splitext(input_file)[0] + ".vm"
 
-        xml_out, bytecode_out = analyze(jack_file_content)
+        xml_out, bytecode_out = compiler.analyze(jack_file_content)
         open(xml_output_file, 'wb').write(xml_out)
         open(vm_bytecode_file, 'wb').write(bytecode_out)
 

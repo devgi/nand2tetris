@@ -10,9 +10,13 @@ from jack_syntax_analyzer.symbol_table import SymbolTable, SubroutineSymbolTable
 from jack_syntax_analyzer.vm_writer import VMBytecodeWriter
 
 
-def analyze(jack_file_content):
-    tokens = tokenize(jack_file_content)
-    return JackAnalyzer(tokens).process()
+class JackCompiler(object):
+    def __init__(self):
+        self._symbol_table = SymbolTable()
+
+    def analyze(self, jack_file_content):
+        tokens = tokenize(jack_file_content)
+        return JackAnalyzer(tokens, self._symbol_table).process()
 
 
 class JackAnalyzer(object):
@@ -21,7 +25,7 @@ class JackAnalyzer(object):
     This class should process only single file since it maintain a state.
     """
 
-    def __init__(self, tokens, symbol_table=SymbolTable()):
+    def __init__(self, tokens, symbol_table):
         self._xml_result = ""
         self._indentation_level = 0
         self._tokens = tokens
