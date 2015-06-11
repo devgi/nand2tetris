@@ -1,0 +1,14 @@
+class ConstructorExample2 {
+	
+	field int x1, x2, x3;
+	field Foobar x4;
+	
+	static int s1, s2;
+	
+	constructor ConstructorExample2 new() {
+	    let x1 = 123;
+	    let s2 = 456;
+	    return this;
+	}
+
+}

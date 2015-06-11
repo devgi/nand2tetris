@@ -1,0 +1,24 @@
+class MethodCall {
+	
+	field int x1, x2, x3;
+	field Foobar x4;
+	
+	static int s1, s2;
+	
+	constructor MethodCall new() {
+	    return this;
+	}
+
+	method int foo(int x, int y) {
+	    return x+y;
+	}
+
+    function void main() {
+        var int x1;
+        var MethodCall x, x2;
+        let x = MethodCall.new();
+        let x1 = x.foo(1,2);
+        let x2 = null;
+        return;
+    }
+}

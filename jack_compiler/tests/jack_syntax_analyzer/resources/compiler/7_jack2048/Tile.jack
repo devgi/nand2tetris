@@ -1,0 +1,62 @@
+class Tile {
+
+    // Location on the screen
+    field int x, y;
+    field int cursor_x, cursor_y;
+    field int size;
+
+    // The value of the tile
+    field int value;
+
+    /** Constructs a new square with a given location and size. */
+    constructor Tile new(int row, int column) {
+        // Since the screen size is 256 rows by 512
+        // And there 16 tiles
+        // each tile size should be (256/4) % (256/4)
+        let size = (256 / 4) - 1;
+        let x = size * column;
+        let y = size * row;
+        
+        // The screen is arranged in 23 X 64 lines and columns,
+        // This maps a tile indexes (row , column) to the position we 
+        // should write the tile label on.
+        let cursor_x = 2  + (6 * row);
+        let cursor_y = 2  + (8 * column);
+        
+        let value = 0;
+        
+        do draw();
+        return this;
+    }
+    
+    method boolean setValue(int new_value) {
+        /**
+        * Set the value of this tile.
+        **/
+        if (~(value = new_value)) {
+            let value = new_value;
+            do draw();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    method int getValue() {
+        return value;
+    }
+    
+    method void draw() {
+        do Screen.setColor(true); // black
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        
+        do Screen.setColor(false); // white
+        do Screen.drawRectangle(x + 2, y + 2, x + size - 2, y + size - 2);
+        
+        if (value > 0) {
+            do Output.moveCursor(cursor_x, cursor_y);
+            do Output.printInt(value);
+        }
+        return;
+    }
+}

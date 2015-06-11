@@ -1,7 +1,7 @@
 import re
 
 from xml.sax.saxutils import escape
-from jack_syntax_analyzer.consts import KEYWORDS, SYMBOLS
+from jack_compiler.consts import KEYWORDS, SYMBOLS
 
 class Token(object):
     def __init__(self, type, value):
@@ -60,7 +60,7 @@ def strip_comments(jack_file_content):
     content_no_comments = MULTI_LINE_COMMENT.sub("", content_no_comments)
     return content_no_comments
 
-KEYWORD_PATTERN = "|".join(KEYWORDS)
+KEYWORD_PATTERN = "|".join(x+' ' for x in KEYWORDS)
 SYMBOL_PATTERN = "|".join(re.escape(symbol) for symbol in SYMBOLS)
 INTEGER_PATTERN = "\d+"
 # No new line or "
@@ -99,6 +99,7 @@ def tokenize_line(jack_line_no_comment):
             raise RuntimeError("Unexpected token: %s" % leftover)
 
     for token in TOKEN_RE.findall(jack_line_no_comment):
+        token = token.strip()
         if token in KEYWORDS:
             yield Keyword(value=token)
 

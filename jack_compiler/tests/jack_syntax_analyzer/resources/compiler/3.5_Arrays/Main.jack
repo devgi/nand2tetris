@@ -1,0 +1,21 @@
+class Main {
+    
+    function void main() {
+	    var Array array;
+	    var int i,j;
+        let array = Array.new(3);
+        let i = 0;
+        let array[i] = 100;
+
+        let array[i+1] = 200;
+
+        let array[2] = 300+100;
+        let j = 0;
+        let i = array[j];
+        let i = array[j+1];
+        let i = array[2];
+        let i = array[1+2];
+    	return;
+    }
+
+}

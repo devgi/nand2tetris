@@ -1,6 +1,6 @@
 import pytest
 
-from jack_syntax_analyzer.tokenizer import strip_comments, tokenize, tokens_to_xml
+from jack_compiler.tokenizer import strip_comments, tokenize, tokens_to_xml
 
 from conftest import compare_xmls
 

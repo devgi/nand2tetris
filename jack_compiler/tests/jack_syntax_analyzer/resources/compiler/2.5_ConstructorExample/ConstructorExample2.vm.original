@@ -1,0 +1,10 @@
+function ConstructorExample2.new 0
+push constant 4
+call Memory.alloc 1
+pop pointer 0
+push constant 123
+pop this 0
+push constant 456
+pop static 1
+push pointer 0
+return

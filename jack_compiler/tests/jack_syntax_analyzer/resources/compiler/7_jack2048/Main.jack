@@ -1,0 +1,20 @@
+/**
+ * The Main class initializes a new 2048 game and starts it.
+ */
+class Main {
+
+    /** Initializes a new game and starts it. */    
+    function void main() {
+        var Game2048 game;
+        var Random rand; 
+        var int seed;
+        
+        // Read seed from the user.
+        let seed = Keyboard.readInt("Enter seed for the game (int):");
+        let rand = Random.new(seed);
+        let game = Game2048.new(rand);
+        do game.run();
+        
+        return;
+    }
+}
