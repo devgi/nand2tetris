@@ -1,0 +1,113 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * Memory operations library.
+ */ 
+class Memory {
+    static int freeListRoot;
+    
+    /** consts **/
+    static int MEMORY;
+    static int NEXT_BLOCK;
+    static int BLOCK_SIZE;
+    
+    static int FREE_LIST_HEADER_SIZE;
+    static int HEAP_START;
+    static int HEAP_END;
+    
+    /** Memory Error code **/
+    static int SYS_ERR__ALLOCATED_MEMORY_MUST_BE_POSITIVE;
+    static int SYS_ERR__HEAP_OVERFLOW;
+
+    /** Initializes memory parameters. */
+    function void init() {
+        // Fill consts.
+        let MEMORY = 0;
+        
+        // Free list header size is 2, the first location is 
+        // the pointer to the next block, and the second is the current block size.
+        let FREE_LIST_HEADER_SIZE = 2;
+        let NEXT_BLOCK = -2;
+        let BLOCK_SIZE = -1;
+        
+        // Fill errors.
+        let SYS_ERR__ALLOCATED_MEMORY_MUST_BE_POSITIVE = 5;
+        let SYS_ERR__HEAP_OVERFLOW = 6;
+        
+        
+        let HEAP_START = 2048;
+        let HEAP_END = 16483;
+        
+        // Initialize free list.
+        let freeListRoot = HEAP_START + 2;
+        let freeListRoot[BLOCK_SIZE] = HEAP_END - freeListRoot;
+        let freeListRoot[NEXT_BLOCK] = 0;
+        
+        return;
+    }
+
+    /** Returns the value of the main memory at the given address. */
+    function int peek(int address) {
+        return MEMORY[address];
+    }
+
+    /** Sets the value of the main memory at this address
+     *  to the given value. */
+    function void poke(int address, int value) {
+        let MEMORY[address] = value;
+        return;
+    }
+
+    /** finds and allocates from the heap a memory block of the 
+     *  specified size and returns a reference to its base address. */
+    function int alloc(int size) {
+        var int currentBlock;
+        var int nextBlock;
+        
+        let currentBlock = freeListRoot;
+        
+        // Validate input.        
+        if (size < 0) {
+            return Sys.error(SYS_ERR__ALLOCATED_MEMORY_MUST_BE_POSITIVE);
+        }
+        
+        // While we still have more blocks to go, and we have not yet
+        // found free space for allocation.
+        while (currentBlock > 0) {
+            if ( ~ (currentBlock[BLOCK_SIZE] < size + FREE_LIST_HEADER_SIZE ) ) {
+                // We found large enogh block.
+                let nextBlock = currentBlock + size + FREE_LIST_HEADER_SIZE;
+                let nextBlock[BLOCK_SIZE] = currentBlock[BLOCK_SIZE] - (nextBlock - currentBlock);
+                let nextBlock[NEXT_BLOCK] = currentBlock[NEXT_BLOCK];
+                
+                
+                let currentBlock[BLOCK_SIZE] = 0;
+                let currentBlock[NEXT_BLOCK] = nextBlock;
+                return currentBlock;
+            }
+            
+            let currentBlock = currentBlock[NEXT_BLOCK];
+        }
+        
+        // Maybe defrag?
+        
+        // Should we halt the system in this case? seem quite radical.
+        return Sys.error(SYS_ERR__HEAP_OVERFLOW);
+    }
+
+    /** De-allocates the given object and frees its space. */
+    function void deAlloc(int object) {
+        var int nextBlock;
+        let nextBlock = object[NEXT_BLOCK];
+        
+        // Unite this block with the next block. Notice that by the way
+        // Our allocation algorithm works there must be a next block. so we 
+        // don't even check.
+        let object[BLOCK_SIZE] = (nextBlock - object) + nextBlock[BLOCK_SIZE];
+        let object[NEXT_BLOCK] = nextBlock[NEXT_BLOCK];
+        return;
+    }    
+}

@@ -152,12 +152,19 @@ class Math {
         let low = 0;
         let high = 181; //since 182^2 > 65535 ;
         
-        while (low < high) {
-            let med = (low + high) / 2;
+        while ( ~ (low > high)) {
+            let med = ((low + high) / 2);
+            
             if ((med * med) > x) {
                 let high = med -1;
             } else {
-                let low = med;
+                // If the search still in progress.
+                if (low < med) {
+                    let low = med;
+                    
+                } else {
+                    let low = low + 1;
+                }
             }
         }
         
