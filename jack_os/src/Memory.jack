@@ -103,11 +103,12 @@ class Memory {
         var int nextBlock;
         let nextBlock = object[NEXT_BLOCK];
         
-        // Unite this block with the next block. Notice that by the way
+        // Retrun the size of the object to the free list. Notice that by the way
         // Our allocation algorithm works there must be a next block. so we 
         // don't even check.
-        let object[BLOCK_SIZE] = (nextBlock - object) + nextBlock[BLOCK_SIZE];
-        let object[NEXT_BLOCK] = nextBlock[NEXT_BLOCK];
+        let object[BLOCK_SIZE] = (nextBlock - FREE_LIST_HEADER_SIZE ) - object ;
+        
+        // Maybe defrag?
         return;
     }    
 }
