@@ -1,0 +1,194 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Math.jack
+
+/**
+ * A basic math library.
+ */
+class Math {
+    
+    // Holds the power of two from 0 - to 16;
+    static Array powersOfTwo;
+    
+    // consts
+    static int INT_SIZE;
+    
+    // errors;
+    static int SYS_ERR__ZERO_DIVISION;
+    static int SYS_ERR__NEGATIVE_SQRT;
+
+    /** Initializes the library. */
+    function void init() {
+        let INT_SIZE = 16;
+        
+        let SYS_ERR__ZERO_DIVISION = 3;
+        let SYS_ERR__NEGATIVE_SQRT = 4;
+    
+        let powersOfTwo = Array.new(INT_SIZE);
+        let powersOfTwo[0] = 1 ;
+        let powersOfTwo[1] = 2 ;
+        let powersOfTwo[2] = 4 ;
+        let powersOfTwo[3] = 8 ;
+        let powersOfTwo[4] = 16 ;
+        let powersOfTwo[5] = 32 ;
+        let powersOfTwo[6] = 64 ;
+        let powersOfTwo[7] = 128 ;
+        let powersOfTwo[8] = 256 ;
+        let powersOfTwo[9] = 512 ;
+        let powersOfTwo[10] = 1024 ;
+        let powersOfTwo[11] = 2048 ;
+        let powersOfTwo[12] = 4096 ;
+        let powersOfTwo[13] = 8192 ;
+        let powersOfTwo[14] = 16384 ;
+        
+        // Since all the numbers are signed, we can't just 
+        // assign  32768 to get (1<<15). So lets cause an overflow.
+        let powersOfTwo[15] = 16384+16384 ;
+        return;
+    }
+
+    /** Returns the absolute value of x. */
+    function int abs(int x) {
+        if (x > 0) {
+            return x;
+        } else {
+            return -x;
+        }
+    }
+    
+    /** Returns True if the j'th bit of y is on. False otherwise **/
+    function boolean get_bit_value(int y, int j) {
+        // Note: the j must be between 0 to 16.
+        // Note: we don't use > 0 since the numbers are signed (!!)
+        return ~((powersOfTwo[j] & y) = 0);
+    }
+
+    /** Returns the product of x and y. */
+    function int multiply(int x, int y) {
+        var int result, shiftX;
+        var int j;
+        
+        
+        let result = 0;
+        let shiftX = x;
+        let j = 0;
+        
+        
+        while ( j < INT_SIZE ) {
+            if (Math.get_bit_value(y, j)) {
+                let result = result + shiftX;
+            }
+            
+            let shiftX = shiftX + shiftX;
+            let j = j + 1;
+        }
+        
+        return result;
+    }
+
+    /** Returns the integer part of x/y. */
+    function int divide(int x, int y) {
+        // based on http://en.wikipedia.org/w/index.php?title=Division_algorithm&action=edit&section=3
+        var boolean x_sign;
+        var boolean y_sign;
+        
+        var int Q;
+        var int R;
+        var int j;
+        
+        if (y = 0) {
+            return Sys.error(SYS_ERR__ZERO_DIVISION);
+        }
+        
+        // since the algorithm assume unsigned int, lets save the sign aside and apply it later.
+        let x_sign = (x > 0);
+        let y_sign = (y > 0);
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+        
+        let Q = 0;
+        let R = 0;
+        let j = INT_SIZE;
+        
+        while ( j > 0 ) {
+            let j = j - 1;
+        
+            // left-shift R by 1 bit
+            let R = R + R; 
+            
+            // set the least-significant bit of R equal to bit i of the numerator
+            if (Math.get_bit_value(x, j)) {
+                let R = R | 1; 
+            } else {
+                // 0b11111110
+                let R = R & (~1); 
+            }
+            
+            if ( ~ ( R < y) ) {
+                let R = R - y;
+                let Q = Q | powersOfTwo[j];
+            }
+        }
+        
+        // Return the quotient 
+        if ( x_sign = y_sign ) {
+            return Q;
+        } else {
+            return -Q;
+        }
+    }
+
+    /** Returns the integer part of the square root of x. */
+    function int sqrt(int x) {
+        var int low;
+        var int high;
+        var int med;
+        
+        if ( x < 0 ) {
+            return Sys.error(SYS_ERR__NEGATIVE_SQRT);
+        }
+        
+        let low = 0;
+        let high = 181; //since 182^2 > 65535 ;
+        
+        while ( ~ (low > high)) {
+            let med = ((low + high) / 2);
+            
+            if ((med * med) > x) {
+                let high = med -1;
+            } else {
+                // If the search still in progress.
+                if (low < med) {
+                    let low = med;
+                    
+                } else {
+                    let low = low + 1;
+                }
+            }
+        }
+        
+        // Actually since we use constant size int, much efficient implementation, 
+        // would be switch case that cover the ranges of the sqrt for 0 to 181. 
+        // (Saves the multiplication and the division).
+        return med;
+    }
+
+    /** Returns the greater number. */
+    function int max(int a, int b) {
+        if (a < b) {
+            return b;
+        } else {
+            return a;
+        }
+    }
+
+    /** Returns the smaller number. */
+    function int min(int a, int b) {
+        if (a < b) {
+            return a;
+        } else {
+            return b;
+        }
+    }
+}
