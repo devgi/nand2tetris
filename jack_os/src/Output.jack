@@ -19,21 +19,32 @@ class Output {
     static int cursor_column;
     
     static int NUMBER_OF_LINES_IN_SCREEN;
-    static int NUMBER_OF_COLUMNS_SCREEN;
+    static int NUMBER_OF_COLUMNS_IN_SCREEN;
     static int NUMBER_OF_LINES_IN_CHAR;
     static int NUMBER_OF_COLUMNS_IN_CHAR;
+
+	static int BASE_SCREEN;
+	static int END_SCREEN;
+	
+	static int SYS_ERR_ILLEGAL_CURSOR_LOCATION;
 
     /** Initializes the screen and locates the cursor at the screen's top-left. */
     function void init() {
         let cursor_column = 0;
         let cursor_line = 0;
         
-        let NUMBER_OF_LINES_IN_SCREEN = 64;
-        let NUMBER_OF_LINES = 23;
-        let NUMBER_OF_LINES_IN_CHAR = 8;
-        let NUMBER_OF_COLUMNS_IN_CHAR = 11;
-    
-        do initMap();
+        let NUMBER_OF_COLUMNS_IN_SCREEN = 64;
+        let NUMBER_OF_LINES_IN_SCREEN = 23;
+        let NUMBER_OF_LINES_IN_CHAR = 11;
+        let NUMBER_OF_COLUMNS_IN_CHAR = 8;
+		
+		let BASE_SCREEN = 16384;
+		let END_SCREEN = 24575; 
+		
+		let SYS_ERR_ILLEGAL_CURSOR_LOCATION = 20;
+		
+        do Output.initMap();
+		return;
     }
 
     // Initalizes the character map array
@@ -188,60 +199,126 @@ class Output {
     /** Moves the cursor to the j’th column of the i’th row,
      *  and erases the character that was there. */
     function void moveCursor(int i, int j) {
+		if ((j > (NUMBER_OF_COLUMNS_IN_SCREEN-1)) | (j < 0) | (i > (NUMBER_OF_LINES_IN_SCREEN -1)) | (i < 0)) { 
+			do Sys.error(SYS_ERR_ILLEGAL_CURSOR_LOCATION);
+			return;
+		}
         let cursor_line = i;
         let cursor_column = j;
         
-        do printChar(0);
+        do Output.printChar(0);
         
         let cursor_line = i;
         let cursor_column = j;
+		return;
     }
 
     /** Prints c at the cursor location and advances the cursor one
      *  column forward. */
     function void printChar(char c) {
         // The top left corner.
-        var int lx, ly;
-        var int line_index, column_index;
+        var int base_memory_address;
+        var int line_index;
+		var int screen_value;
         var Array char_bitmap;
         var int line_bitmask;
-        var boolean bit_value;
-        
-        let lx = cursor_column * 8;
-        let ly = cursor_line = 11;
-        
-        let char_bitmap = getMap(c);
+		
+		//clear screen if needed
+        if (cursor_line = NUMBER_OF_LINES_IN_SCREEN) {
+			do Output.clearScreen();
+		}
+        let char_bitmap = Output.getMap(c);
         
         let line_index = 0;
+		// 16 is the size of memory address, 32 is the number of memory words in sceen line
+		let base_memory_address = BASE_SCREEN + ((cursor_column * NUMBER_OF_COLUMNS_IN_CHAR)/16) + ((cursor_line * NUMBER_OF_LINES_IN_CHAR)*32);
         while (line_index < 11) {
             let line_bitmask = char_bitmap[line_index];
-            let column_index = 0; 
-            while (column_index < 8) {
-                let bit_value = Math.get_bit_value(line_bitmask, column_index)
-                
-                Memoery.poke(
-                
-                let column_index = column_index + 1;
-            }
+			let screen_value = Memory.peek(base_memory_address);
+			if ((cursor_column & 1) = 1) {
+				let line_bitmask = line_bitmask * 256;
+				// 255 = 0000000011111111
+				let screen_value = screen_value & 255;
+			} else {
+				// ~255 = 1111111100000000
+				let screen_value = screen_value & (~255);
+			}
+			do Memory.poke(base_memory_address, (screen_value | line_bitmask));
+            let base_memory_address = base_memory_address + 32;
             let line_index = line_index + 1;
-       }
+        }
+		let cursor_column = cursor_column + 1;
+		if (cursor_column = NUMBER_OF_COLUMNS_IN_SCREEN) {
+			let cursor_column = 0;
+			let cursor_line = cursor_line + 1;	
+		}
+		return;
     }
 
     /** Prints s starting at the cursor location, and advances the
      *  cursor appropriately. */
     function void printString(String s) {
+		var int index;
+		
+		let index = 0;
+		
+		while (index < s.length()) {
+			do Output.printChar(s.charAt(index));
+			let index = index + 1;
+		}
+		return;
     }
 
     /** Prints i starting at the cursor location, and advances the
      *  cursor appropriately. */
     function void printInt(int i) {
+		var String s;
+		let s = String.new(6);
+		do s.setInt(i);
+		do Output.printString(s);
+		return;
     }
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
+		//clear screen if needed
+        if (cursor_line = NUMBER_OF_LINES_IN_SCREEN) {
+			do Output.clearScreen();
+		}
+		
+		let cursor_line = cursor_line + 1;
+		let cursor_column = 0;
+		
+		if (cursor_line = NUMBER_OF_LINES_IN_SCREEN) {
+			do Output.clearScreen();
+		}
+		return;
     }
 
     /** Moves the cursor one column back. */
     function void backSpace() {
+		if (cursor_column > 0) {
+			let cursor_column = cursor_column - 1;
+		} else {
+			if (cursor_line > 0) {
+				let cursor_line = cursor_line - 1;
+				let cursor_column = NUMBER_OF_COLUMNS_IN_SCREEN - 1;
+			}
+		}
+		return;
     }
+	
+	function void clearScreen() {
+		/**
+		var int screen_address;
+		let screen_address = BASE_SCREEN;
+		while (screen_address < END_SCREEN) {
+			do Memory.poke(screen_address, 0);
+			let screen_address = screen_address + 1;
+		}
+		*/
+		let cursor_line = 0;
+		let cursor_column = 0;
+		return;
+	}
 }
