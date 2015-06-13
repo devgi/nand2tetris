@@ -14,9 +14,26 @@ class Output {
 
     // Character map for printing on the left of a screen word
     static Array charMaps; 
+    
+    static int cursor_line;
+    static int cursor_column;
+    
+    static int NUMBER_OF_LINES_IN_SCREEN;
+    static int NUMBER_OF_COLUMNS_SCREEN;
+    static int NUMBER_OF_LINES_IN_CHAR;
+    static int NUMBER_OF_COLUMNS_IN_CHAR;
 
     /** Initializes the screen and locates the cursor at the screen's top-left. */
     function void init() {
+        let cursor_column = 0;
+        let cursor_line = 0;
+        
+        let NUMBER_OF_LINES_IN_SCREEN = 64;
+        let NUMBER_OF_LINES = 23;
+        let NUMBER_OF_LINES_IN_CHAR = 8;
+        let NUMBER_OF_COLUMNS_IN_CHAR = 11;
+    
+        do initMap();
     }
 
     // Initalizes the character map array
@@ -65,7 +82,7 @@ class Output {
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,0,0,0,0,0,0,0,0,0,0,0);          // A ** TO BE FILLED **
+        do Output.create(65,28,51,51,51,63,51,51,51,51,0,0); // A
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -171,11 +188,43 @@ class Output {
     /** Moves the cursor to the j’th column of the i’th row,
      *  and erases the character that was there. */
     function void moveCursor(int i, int j) {
+        let cursor_line = i;
+        let cursor_column = j;
+        
+        do printChar(0);
+        
+        let cursor_line = i;
+        let cursor_column = j;
     }
 
     /** Prints c at the cursor location and advances the cursor one
      *  column forward. */
     function void printChar(char c) {
+        // The top left corner.
+        var int lx, ly;
+        var int line_index, column_index;
+        var Array char_bitmap;
+        var int line_bitmask;
+        var boolean bit_value;
+        
+        let lx = cursor_column * 8;
+        let ly = cursor_line = 11;
+        
+        let char_bitmap = getMap(c);
+        
+        let line_index = 0;
+        while (line_index < 11) {
+            let line_bitmask = char_bitmap[line_index];
+            let column_index = 0; 
+            while (column_index < 8) {
+                let bit_value = Math.get_bit_value(line_bitmask, column_index)
+                
+                Memoery.poke(
+                
+                let column_index = column_index + 1;
+            }
+            let line_index = line_index + 1;
+       }
     }
 
     /** Prints s starting at the cursor location, and advances the
