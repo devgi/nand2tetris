@@ -1,0 +1,215 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Screen.jack
+
+/**
+ * Graphic screen library.
+ */
+class Screen {
+
+	static int BASE_SCREEN;
+	static int END_SCREEN;
+	
+	static int SCREEN_WIDTH;
+	static int SCREEN_HEIGHT;
+	
+	static boolean color;
+	
+	static int INT_SIZE;
+	static Array powersOfTwo;
+	
+    /** Initializes the Screen. */
+    function void init() {
+		let color = true;
+		
+		let BASE_SCREEN = 16384;
+		let END_SCREEN = 24575;
+		
+		let SCREEN_WIDTH = 512;
+		let SCREEN_HEIGHT = 256;
+		
+		let INT_SIZE = 16;
+		
+		let powersOfTwo = Array.new(INT_SIZE);
+        let powersOfTwo[0] = 1 ;
+        let powersOfTwo[1] = 2 ;
+        let powersOfTwo[2] = 4 ;
+        let powersOfTwo[3] = 8 ;
+        let powersOfTwo[4] = 16 ;
+        let powersOfTwo[5] = 32 ;
+        let powersOfTwo[6] = 64 ;
+        let powersOfTwo[7] = 128 ;
+        let powersOfTwo[8] = 256 ;
+        let powersOfTwo[9] = 512 ;
+        let powersOfTwo[10] = 1024 ;
+        let powersOfTwo[11] = 2048 ;
+        let powersOfTwo[12] = 4096 ;
+        let powersOfTwo[13] = 8192 ;
+        let powersOfTwo[14] = 16384 ;
+		
+		// Since all the numbers are signed, we can't just 
+        // assign  32768 to get (1<<15). So lets cause an overflow.
+        let powersOfTwo[15] = 16384+16384 ;
+		
+		return;
+    }
+
+    /** Erases the whole screen. */
+    function void clearScreen() {
+		var int screen_address;
+		let screen_address = BASE_SCREEN;
+		while (screen_address < END_SCREEN) {
+			do Memory.poke(screen_address, 0);
+			let screen_address = screen_address + 1;
+		}
+		return;
+    }
+
+    /** Sets the color to be used in further draw commands
+     *  where white = false, black = true. */
+    function void setColor(boolean b) {
+		let color = b;
+		return;
+    }
+
+    /** Draws the (x, y) pixel. */
+    function void drawPixel(int x, int y) {
+		var int pixel_address, pixel_mask, screen_value;
+		//15 = 0000000000001111 eficient way to get mod16
+		let pixel_mask = powersOfTwo[(x & 15)];
+		
+		let pixel_address = BASE_SCREEN + (x/16) + (y*32);
+		let screen_value = Memory.peek(pixel_address);
+		if (color){
+			do Memory.poke(pixel_address, (screen_value | pixel_mask));
+		} else {
+			do Memory.poke(pixel_address, (screen_value & (~pixel_mask)));
+		}
+		return;
+    }
+
+    /** Draws a line from (x1, y1) to (x2, y2). */
+    function void drawLine(int x1, int y1, int x2, int y2) {
+        var int dx, dy;
+        var int temp;
+        
+        // Make sure x1 <= x2
+        if( x1 > x2 ) {
+            let temp = x1;
+            let x1 = x2;
+            let x2 = temp;
+            let temp = y1;
+            let y1 = y2;
+            let y2 = temp;
+        }
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        
+        if( dx = 0 ) {
+            do Screen.drawVerticalLine( x1, y1, y2 );
+        }
+        else { if( dy = 0 ) {
+            do Screen.drawHorizontalLine( x1, x2, y1 );
+        }
+        else {
+            do Screen.drawDiagonalLine( x1, y1, x2, y2, dx, dy );
+        }}
+        
+        return;
+    }
+    
+    function void drawDiagonalLine( int x1, int y1, int x2, int y2, int dx, int dy ) {
+        var int a, b;
+        var int a_dy_minus_b_dx;
+        var int y_increment;
+
+        let a = 0;
+        let b = 0;
+        let a_dy_minus_b_dx = 0;
+        
+        if( dy < 0 ) {
+            let y_increment = -1;
+        }
+        else {
+            let y_increment = 1;
+        }
+
+        while( ~(a > dx) & (((y_increment = 1) & ~(b > dy)) | ((y_increment = -1) & ~(b < dy))) ) {
+            do Screen.drawPixel( x1+a, y1+b );
+            if( a_dy_minus_b_dx < 0 ) {
+                let a = a + 1;
+                let a_dy_minus_b_dx = a_dy_minus_b_dx + (dy*y_increment);
+            }
+            else {
+                let b = b + y_increment;
+                let a_dy_minus_b_dx = a_dy_minus_b_dx - dx;
+            }
+        }
+        return;
+    }
+
+    function void drawVerticalLine( int x, int y1, int y2 ) {
+		var int min_y, max_y;
+		
+		let min_y = Math.min(y1,y2);
+		let max_y = Math.max(y1,y2);
+		      
+        while( ~(min_y > max_y) ) {
+            do Screen.drawPixel( x, min_y );
+            let min_y = min_y + 1;
+        }
+        return;
+    }
+    
+    function void drawHorizontalLine( int x1, int x2, int y ) {
+		var int min_x, max_x;
+		//do Output.printInt(y);
+		let min_x = Math.min(x1,x2);
+		let max_x = Math.max(x1,x2);
+		      
+        while( ~(min_x > max_x) ) {
+			// this is a eficient implementation for horizontal line in case of draw_rectangle and draw_circle.
+			if (((min_x & 15) = 0) & (max_x > (min_x + 15))) {
+				do Memory.poke((BASE_SCREEN + (min_x/16) + (y*32)),color);
+				let min_x = min_x + 16;
+			} else {
+				do Screen.drawPixel( min_x, y );
+				let min_x = min_x + 1;
+			}
+            
+        }
+        return;
+    }
+
+    /** Draws a filled rectangle where the top left corner
+     *  is (x1, y1) and the bottom right corner is (x2, y2). */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+		var int min_y, max_y;
+		
+		let min_y = Math.min(y1,y2);
+		let max_y = Math.max(y1,y2);
+		while( ~(min_y > max_y) ) {
+            do Screen.drawHorizontalLine(x1, x2, min_y );
+            let min_y = min_y + 1;
+        }
+		return;
+    }
+
+    /** Draws a filled circle of radius r around (cx, cy). */
+    function void drawCircle(int cx, int cy, int r) {
+		var int min_y, max_y;
+		var int x1, x2;
+		
+		let min_y = cy - r;
+		let max_y = cy + r;
+		while( ~(min_y > max_y) ) {
+			let x1 = cx - Math.sqrt((r*r)-((cy-min_y)*(cy-min_y)));
+			let x2 = cx + Math.sqrt((r*r)-((cy-min_y)*(cy-min_y)));
+            do Screen.drawHorizontalLine(x1, x2, min_y );
+            let min_y = min_y + 1;
+        }
+		return;
+    }
+}
