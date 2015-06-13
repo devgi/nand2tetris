@@ -1,0 +1,223 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/String.jack
+
+/**
+ * Represents a String object. Implements the String type.
+ */
+class String {
+    
+    field Array m_buffer;
+    field int m_length;
+    field int m_size;
+    
+    /** consts **/
+    // Note that we keep this constant values as static variable 
+    // for readability. we know that using the constant immediate value 
+    // would lead in real processor to much faster implementation (no extra memory access overhead).
+    static int SYS_ERR__CHAR_AT_INDEX_OUT_OF_BOUNDS;
+    static int SYS_ERR__SET_CHAR_INDEX_OUT_OF_BOUNDS;
+    static int SYS_ERR__APPEND_CHAR_STRING_IS_FULL;
+    static int SYS_ERR__ERASE_LAST_CHAR_STRING_IS_EMPTY;
+    static int SYS_ERR__SET_INT_INSUFFICIENT_STRING_CAPACITIY;
+    
+    static int FIRST_DIGIT_ASCII;
+    static int NEG_ASCII;
+    static int NEW_LINE_ASCII;
+    static int BACKSPACE_ASCII;
+    static int DOUBLE_QUOTE_ASCII;
+    
+    
+    function void init() {
+        let SYS_ERR__CHAR_AT_INDEX_OUT_OF_BOUNDS = 14;
+        let SYS_ERR__SET_CHAR_INDEX_OUT_OF_BOUNDS = 15;
+        let SYS_ERR__APPEND_CHAR_STRING_IS_FULL = 16;
+        let SYS_ERR__ERASE_LAST_CHAR_STRING_IS_EMPTY = 17;
+        let SYS_ERR__SET_INT_INSUFFICIENT_STRING_CAPACITIY = 18;
+        
+        let FIRST_DIGIT_ASCII = 48;
+        let NEG_ASCII = 45;
+        
+        let NEW_LINE_ASCII = 128;
+        let BACKSPACE_ASCII = 129;
+        let DOUBLE_QUOTE_ASCII = 34;
+        return;
+    }
+    
+    /** Constructs a new empty String with a maximum length of maxLength. */
+    constructor String new(int maxLength) {
+        // Initialize static values.
+        do String.init();
+        
+        if (0 < maxLength) {
+            let m_buffer = Array.new(maxLength);
+        } else {
+            // No allocate. empty string ("").
+            let m_buffer = 0;
+        }
+        let m_length = 0;
+        let m_size = maxLength;
+        return this;
+    }
+
+    /** De-allocates the string and frees its space. */
+    method void dispose() {
+        if (0 < m_buffer) {
+            do m_buffer.dispose();
+            let m_buffer = 0;
+        }
+        return;
+    }
+
+    /** Returns the current length of this String. */
+    method int length() {
+        return m_length;
+    }
+
+    /** Returns the character at location j. */
+    method char charAt(int j) {
+        if ((j < 0) | ( (m_length - 1) < j )) {
+            return Sys.error(SYS_ERR__CHAR_AT_INDEX_OUT_OF_BOUNDS);
+        }
+        
+        return m_buffer[j];
+    }
+
+    /** Sets the j'th character of this string to be c. */
+    method void setCharAt(int j, char c) {
+        if ((j < 0) | ( (m_length - 1) < j )) {
+            do Sys.error(SYS_ERR__CHAR_AT_INDEX_OUT_OF_BOUNDS);
+            return;
+        }
+        
+        let m_buffer[j] = c;
+        return;
+    }
+
+    /** Appends the character c to the end of this String.
+     *  Returns this string as the return value. */
+    method String appendChar(char c) {
+        if (m_length < m_size) { 
+            let m_buffer[m_length] = c;
+            let m_length = m_length + 1;            
+            return this;
+        } else {
+            return Sys.error(SYS_ERR__APPEND_CHAR_STRING_IS_FULL);
+        }
+    }
+
+    /** Erases the last character from this String. */
+    method void eraseLastChar() {
+        if (0 < m_length) {
+            let m_length = m_length - 1;
+            return;
+        } else {
+            do Sys.error(SYS_ERR__APPEND_CHAR_STRING_IS_FULL);
+            return;
+        }
+    }
+
+    /** Returns the integer value of this String until the first non
+     *  numeric character. */
+    method int intValue() {
+        var int result;
+        var int j, d;
+        var boolean neg;
+        
+        let result = 0;
+        
+        
+        if ((m_length > 0) & (m_buffer[0] = NEG_ASCII)) {
+            let neg = true;
+            let j = 1;
+        } else {
+            let neg = false;
+            let j = 0;
+        }
+        
+        while (j < m_length) {
+            let d = m_buffer[j] - FIRST_DIGIT_ASCII;
+            
+            if ((d < 0) | (9 < d)) {
+                return result;
+            } else {
+                let result = (10 * result) + d;
+            }
+            let j = j + 1;
+        }
+        
+        if (neg) {
+            return -result;
+        } else {
+            return result;
+        }
+    }
+
+    /** Sets this String to hold a representation of the given number. */
+    method void setInt(int number) {
+        var int least_signifit_digit;
+        var int int_length;
+        var int shift_size;
+        var int j;
+        var boolean neg;
+        
+        let m_length = m_size;
+        
+        // Handle negative number.
+        if (number < 0) {
+            let number = -number;
+            let neg = true;
+           
+        } else {
+            let neg = false;
+        }
+        
+        // Write all the digits from the lsb, to the end
+        // of the string.
+        while (number > 10) {
+            let int_length = int_length + 1;
+            let least_signifit_digit = number - ((number / 10) * 10);
+            do setCharAt(m_size - int_length, FIRST_DIGIT_ASCII + least_signifit_digit);
+            let number = number / 10;
+        }
+        
+        let int_length = int_length + 1;
+        do setCharAt(m_size - int_length, FIRST_DIGIT_ASCII + number);
+        
+        // Perform one to one move of the int from the end of the string,
+        // To its beginning.
+        if (neg) {
+            let m_buffer[0] = NEG_ASCII;
+            let j = 1;
+            let m_length = int_length + 1;
+            let shift_size = m_size - int_length - 1;
+        } else {
+            let j = 0;
+            let m_length = int_length;
+            let shift_size = m_size - int_length;
+        }
+        
+        while (j < m_length) {
+            let m_buffer[j] = m_buffer[j + shift_size];
+            let j = j + 1;
+        }
+        
+        return;
+    }
+
+    /** Returns the new line character. */
+    function char newLine() {
+        return NEW_LINE_ASCII;
+    }
+
+    /** Returns the backspace character. */
+    function char backSpace() {
+        return BACKSPACE_ASCII;
+    }
+
+    /** Returns the double quote (") character. */
+    function char doubleQuote() {
+        return DOUBLE_QUOTE_ASCII;
+    }
+}
