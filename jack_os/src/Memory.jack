@@ -78,9 +78,9 @@ class Memory {
         // found free space for allocation.
         while (currentBlock > 0) {
             if ( ~ (currentBlock[BLOCK_SIZE] < size + FREE_LIST_HEADER_SIZE ) ) {
-                // We found large enogh block.
+                // We found large enough block.
                 let nextBlock = currentBlock + size + FREE_LIST_HEADER_SIZE;
-                let nextBlock[BLOCK_SIZE] = currentBlock[BLOCK_SIZE] - (nextBlock - currentBlock);
+                let nextBlock[BLOCK_SIZE] = currentBlock[BLOCK_SIZE] - (size + FREE_LIST_HEADER_SIZE);
                 let nextBlock[NEXT_BLOCK] = currentBlock[NEXT_BLOCK];
                 
                 
